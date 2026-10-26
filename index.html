@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>環 ― 貯金の記録</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="毎月の貯金総額を記録して、増減・月平均・未来の予想を静かに見つめる。">
+<meta name="theme-color" content="#FBF9F4">
+<meta name="color-scheme" content="light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="環">
+<meta name="format-detection" content="telephone=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400&family=Shippori+Mincho:wght@400;500&family=Zen+Kaku+Gothic+New:wght@300;400;500&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --ivory:#FBF9F4; --white:#FFFFFF; --pearl:#F3F2EE;
+  --gold:#CDB47E; --gold-soft:#E7DBB7; --gold-deep:#8F7640;
+  --sky:#DCEAF3;
+  --ink:#3B3C40; --mute:#6D6E73; --faint:#A3A4A8;
+  --up:#3F7A55; --down:#A9575A;
+  --ring:min(80vw,320px);
+  --serif:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
+  --sans:"Zen Kaku Gothic New","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  --num:"Jost","Helvetica Neue","Avenir Next",Arial,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  margin:0;background:var(--ivory);color:var(--ink);
+  font:400 15px/1.75 var(--sans);letter-spacing:.04em;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(120% 55% at 50% -8%,rgba(220,234,243,.75),rgba(220,234,243,0) 62%),
+    linear-gradient(180deg,#FFFFFF 0%,#FBF9F4 48%,#F5F3EC 100%);
+}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;letter-spacing:inherit}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
+p{margin:0}
+h1,h2,h3{margin:0;font-weight:500}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.wrap{max-width:440px;margin:0 auto;padding:0 24px}
+.n{font-family:var(--num);font-weight:400;font-size:1.08em;letter-spacing:.02em;font-variant-numeric:lining-nums tabular-nums}
+.up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--mute)} .mute{color:var(--mute)}
+
+/* ---------- ヘッダー ---------- */
+.top{display:flex;align-items:center;gap:10px;padding:18px 0 0}
+.top svg{width:28px;height:28px;flex:none}
+.brand{font:500 20px/1 var(--serif);letter-spacing:.3em}
+.brand-sub{font-size:11px;color:var(--mute);letter-spacing:.16em;margin-left:4px}
+.banner{margin-top:14px;font-size:12px;line-height:1.7;color:var(--down)}
+main{padding-bottom:112px}
+
+/* ---------- 画面切替 ---------- */
+.screen{display:none}
+.screen.on{display:block;animation:screenIn .4s ease both}
+@keyframes screenIn{from{opacity:0}to{opacity:1}}
+
+/* ---------- 光の輪 ---------- */
+.hero{display:flex;justify-content:center;margin-top:22px}
+.ring-wrap{position:relative;width:var(--ring);height:var(--ring)}
+.ring-halo{position:absolute;inset:-12%;border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(220,234,243,.6),rgba(231,219,183,.2) 58%,rgba(255,255,255,0) 74%);
+  animation:breathe 9s ease-in-out infinite alternate}
+.ring-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;will-change:transform;animation:spin 170s linear infinite}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 14%}
+.ring-k{font-size:12px;letter-spacing:.2em;color:var(--mute);margin-bottom:10px;text-indent:.2em}
+.amount{font-family:var(--num);font-weight:200;line-height:1;letter-spacing:.01em;white-space:nowrap;font-variant-numeric:lining-nums tabular-nums}
+.amount .yen{font:300 .26em var(--sans);margin-left:.45em;letter-spacing:.1em}
+.ring-m{font-size:11px;letter-spacing:.16em;color:var(--mute);margin-top:14px;text-indent:.16em}
+.ring-verse{font:400 17px/2.1 var(--serif);letter-spacing:.24em;color:var(--ink);text-indent:.24em}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{from{opacity:.72;transform:scale(.985)}to{opacity:1;transform:scale(1.015)}}
+@keyframes ringIn{from{opacity:0;transform:scale(.965)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes glow{0%{opacity:.3;transform:scale(.96)}35%{opacity:1;transform:scale(1.06)}100%{opacity:.9;transform:scale(1)}}
+.intro .ring-wrap{animation:ringIn 1.6s cubic-bezier(.2,.7,.2,1) both}
+.intro .ring-center{animation:fadeIn 1.4s .7s ease both}
+.ring-wrap.pulse .ring-halo{animation:glow 1.9s ease-out both,breathe 9s 1.9s ease-in-out infinite alternate}
+
+/* ---------- ホーム ---------- */
+.delta-block{margin-top:34px;text-align:center}
+.delta{font-size:16px;line-height:1.7}
+.cap{font-size:12px;line-height:1.85;color:var(--mute);margin-top:6px}
+.avg-block{margin-top:30px;text-align:center}
+.avg{display:flex;justify-content:center;align-items:baseline;gap:10px}
+.avg-k{font-size:13px;color:var(--mute);letter-spacing:.18em}
+.avg-v{font-size:26px;font-weight:300}
+.avg-u{font-size:13px;color:var(--mute)}
+.peek{display:inline-flex;align-items:baseline;gap:12px;margin-top:18px;min-height:44px;padding:0 4px;
+  border-bottom:1px solid rgba(205,180,126,.55);font-size:14px;color:var(--ink)}
+.peek .n{font-size:1.15em}
+.peek-k{color:var(--mute);font-size:13px}
+.lead{text-align:center;font-size:14px;line-height:2;color:var(--mute);margin-top:34px}
+.actions{margin-top:36px}
+.btn{display:block;width:100%;max-width:340px;margin:0 auto;height:56px;border-radius:28px;
+  font-size:16px;font-weight:500;letter-spacing:.12em;color:var(--ink);
+  background:linear-gradient(180deg,#F1E6C6,#DDCA97);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 10px 26px -14px rgba(150,120,50,.55);
+  transition:transform .2s ease,filter .2s ease}
+.btn:active{transform:scale(.985);filter:brightness(.98)}
+.link{display:block;margin:6px auto 0;min-height:44px;padding:0 14px;font-size:13px;color:var(--mute);
+  text-decoration:underline;text-decoration-color:rgba(205,180,126,.8);text-underline-offset:6px}
+.link.danger{color:var(--down)}
+.tagline{font:400 13px/1.9 var(--serif);letter-spacing:.24em;color:var(--mute);text-align:center;margin-top:46px;text-indent:.24em}
+.nudge{margin-top:30px;text-align:center;font-size:12px;color:var(--mute);line-height:1.8}
+
+/* ---------- 共通の見出し ---------- */
+.screen-title{font:500 22px/1.4 var(--serif);letter-spacing:.3em;margin-top:30px}
+.screen-sub{font-size:13px;color:var(--mute);letter-spacing:.08em;margin-top:4px}
+.mini-ring{display:flex;justify-content:center;margin-top:18px}
+.mini-ring .ring-wrap{width:104px;height:104px}
+
+/* ---------- 未来 ---------- */
+.pace{text-align:center;margin-top:10px}
+.pace-v{font-size:34px;font-weight:200;line-height:1.3;margin-top:2px}
+.pace-v .u{font-size:13px;color:var(--mute);margin-left:8px;font-family:var(--sans);font-weight:400}
+.tl{list-style:none;margin:34px 0 0;padding:0 0 0 34px;position:relative}
+.tl::before{content:"";position:absolute;left:5px;top:12px;bottom:46px;width:1px;background:linear-gradient(180deg,var(--gold),rgba(205,180,126,.12))}
+.tl-item{position:relative;padding-bottom:42px}
+.tl-item::before{content:"";position:absolute;left:-34px;top:7px;width:11px;height:11px;border-radius:50%;border:1px solid var(--gold);background:var(--ivory)}
+.tl-head{display:flex;align-items:baseline;gap:12px}
+.tl-k{font:500 15px var(--serif);letter-spacing:.2em}
+.tl-d{font-size:12px;color:var(--mute);letter-spacing:.1em}
+.tl-v{font-family:var(--num);font-weight:200;line-height:1.25;margin-top:4px;white-space:nowrap}
+.tl-v .u{font:400 13px var(--sans);margin-left:6px;color:var(--mute)}
+.fs-l{font-size:38px}.fs-m{font-size:32px}.fs-s{font-size:26px}
+.tl-delta{font-size:12px;color:var(--mute);margin-top:2px}
+.bar{height:2px;margin-top:12px;background:rgba(205,180,126,.2);border-radius:1px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-soft),var(--gold));border-radius:1px}
+.bar i.neg{background:linear-gradient(90deg,#EBCFCD,#CF9C9A)}
+.notes{margin-top:6px;font-size:12px;line-height:1.95;color:var(--mute)}
+.notes p+p{margin-top:8px}
+
+/* ---------- 履歴 ---------- */
+.chart{margin-top:26px}
+.chart-cap{text-align:center;font-size:13px;color:var(--mute);min-height:24px}
+.chart-cap .n{font-size:1.15em;color:var(--ink)}
+#chartSvg{display:block;width:100%;height:auto;touch-action:pan-y;overflow:visible}
+.hint{font-size:12px;color:var(--mute);margin-top:26px}
+.list{margin-top:10px}
+.year{font:400 12px var(--num);letter-spacing:.22em;color:var(--faint);margin:26px 0 2px}
+.row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;width:100%;text-align:left;min-height:64px;padding:14px 0;border-bottom:1px solid rgba(205,180,126,.2)}
+.row-l{min-width:0}
+.row-m{font-size:15px}
+.row-memo{font-size:12px;color:var(--mute);margin-top:2px;overflow-wrap:anywhere;line-height:1.6}
+.row-r{text-align:right;flex:none}
+.row-a{font-family:var(--num);font-weight:300;font-size:21px;line-height:1.3}
+.row-a .u{font:400 12px var(--sans);margin-left:3px;color:var(--mute)}
+.row-d{font-size:12px;margin-top:1px}
+.settings{margin-top:56px}
+.sec{font:500 15px var(--serif);letter-spacing:.3em;margin-bottom:6px}
+.srow{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;min-height:52px;text-align:left;font-size:14px;border-bottom:1px solid rgba(205,180,126,.2)}
+.srow .sv{font-size:11px;color:var(--mute)}
+.srow.danger{color:var(--down)}
+.foot{font-size:11px;line-height:1.9;color:var(--mute);margin-top:18px}
+
+/* ---------- ナビ ---------- */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(251,249,244,.88);
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  border-top:1px solid rgba(205,180,126,.22);padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav-in{max-width:440px;margin:0 auto;display:flex}
+.nav button{flex:1;height:58px;position:relative;font-size:13px;letter-spacing:.24em;text-indent:.24em;color:var(--mute);transition:color .3s}
+.nav button span{display:block;padding-top:12px}
+.nav button::before{content:"";position:absolute;left:50%;top:9px;width:6px;height:6px;margin-left:-3px;
+  border:1px solid var(--gold);border-radius:50%;opacity:0;transform:scale(.4);transition:opacity .35s,transform .35s}
+.nav button[aria-current="page"]{color:var(--ink)}
+.nav button[aria-current="page"]::before{opacity:1;transform:none}
+
+/* ---------- シート ---------- */
+.sheet{position:fixed;inset:0;z-index:50;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  background:linear-gradient(180deg,#FFFFFF 0%,#FBF9F4 60%);
+  transform:translateY(102%);visibility:hidden;
+  transition:transform .42s cubic-bezier(.22,.8,.24,1),visibility 0s linear .42s}
+.sheet.open{transform:none;visibility:visible;transition:transform .42s cubic-bezier(.22,.8,.24,1),visibility 0s}
+.sheet-head{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  padding:calc(8px + env(safe-area-inset-top,0px)) 10px 6px;background:rgba(255,255,255,.9);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.sheet-title{font:500 16px var(--serif);letter-spacing:.24em;text-indent:.24em}
+.sheet-close{justify-self:start;min-height:44px;padding:0 12px;font-size:14px;color:var(--mute)}
+.sheet-body{max-width:440px;margin:0 auto;padding:14px 24px calc(56px + env(safe-area-inset-bottom,0px))}
+.sheet-lead{text-align:center;font-size:12px;color:var(--mute);line-height:1.9}
+.ym{display:flex;align-items:baseline;justify-content:center;gap:6px;margin-top:10px}
+.ym select{-webkit-appearance:none;appearance:none;background:transparent;border:0;border-bottom:1px solid rgba(205,180,126,.65);border-radius:0;
+  font:300 26px var(--num);color:var(--ink);padding:2px 8px;min-height:44px;text-align:center;text-align-last:center}
+.ym span{font-size:14px;color:var(--mute)}
+.note{text-align:center;font-size:12px;line-height:1.8;color:var(--mute);min-height:22px;margin-top:6px}
+.amount-line{display:flex;align-items:baseline;gap:8px;margin-top:16px;border-bottom:1px solid rgba(205,180,126,.65);padding-bottom:6px}
+.amount-line:focus-within{border-bottom-color:var(--gold-deep)}
+.amount-line input{flex:1;min-width:0;border:0;outline:none;background:transparent;padding:0;text-align:right;
+  font:200 44px/1.2 var(--num);color:var(--ink);-webkit-appearance:none;letter-spacing:.01em}
+.amount-line input::placeholder{color:#D5D3CC}
+.yen-u{font-size:15px;color:var(--mute)}
+.read{text-align:right;font-size:12px;color:var(--mute);min-height:22px;margin-top:4px}
+.preview{text-align:center;margin-top:10px;min-height:56px}
+.pv{font-size:15px}
+.field{margin-top:18px}
+.field label{display:block;font-size:12px;color:var(--mute);letter-spacing:.14em}
+.field input{width:100%;border:0;border-bottom:1px solid rgba(205,180,126,.5);border-radius:0;background:transparent;font:400 16px var(--sans);color:var(--ink);padding:10px 2px;outline:none;-webkit-appearance:none}
+.field input:focus{border-bottom-color:var(--gold-deep)}
+.field input::placeholder{color:#C4C3BE}
+.err{color:var(--down);font-size:13px;text-align:center;min-height:24px;margin:12px 0 8px;line-height:1.7}
+.sheet-body .btn{margin-top:4px}
+.sheet h3{font:500 15px var(--serif);letter-spacing:.16em;margin:26px 0 8px}
+.sheet h3:first-child{margin-top:6px}
+.sheet .formula{background:rgba(243,242,238,.8);border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.9;text-align:center}
+.sheet .body-p{font-size:14px;line-height:1.95;margin-top:10px}
+.sheet .small{font-size:12px;color:var(--mute);line-height:1.9;margin-top:10px}
+.steps{padding-left:1.4em;margin:12px 0 0;font-size:14px;line-height:2}
+textarea.code{display:block;width:100%;min-height:132px;margin-top:14px;padding:12px 14px;border:1px solid rgba(205,180,126,.5);border-radius:14px;
+  background:rgba(255,255,255,.8);font:400 12px/1.6 ui-monospace,Menlo,monospace;color:var(--ink);resize:vertical;outline:none;word-break:break-all}
+textarea.code:focus{border-color:var(--gold-deep)}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.btn-row .btn{margin:0;height:50px;font-size:14px;max-width:none}
+.btn.ghost{background:rgba(255,255,255,.75);box-shadow:inset 0 0 0 1px rgba(205,180,126,.7)}
+.filebtn{display:block;margin-top:14px;font-size:13px;color:var(--mute)}
+.filebtn input{display:block;margin-top:6px;font-size:14px;max-width:100%}
+
+/* ---------- ダイアログ・トースト ---------- */
+.dlg{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:rgba(59,60,64,.3);opacity:0;visibility:hidden;transition:opacity .25s ease,visibility 0s linear .25s}
+.dlg.open{opacity:1;visibility:visible;transition:opacity .25s ease,visibility 0s}
+.dlg-card{width:100%;max-width:340px;background:#fff;border-radius:24px;padding:26px 22px 14px;box-shadow:0 28px 64px -24px rgba(90,75,40,.4)}
+.dlg-title{font:500 17px/1.7 var(--serif);letter-spacing:.08em;margin-bottom:6px}
+.dlg-body{font-size:14px;line-height:1.9;color:var(--mute);margin-bottom:18px}
+.dlg-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dlg-btns button{height:50px;border-radius:15px;font-size:15px}
+.dlg-cancel{color:var(--mute);background:var(--pearl)}
+.dlg-ok{font-weight:500;background:linear-gradient(180deg,#F1E6C6,#DDCA97)}
+.dlg-ok.danger{background:#F4E3E1;color:var(--down)}
+.toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));z-index:80;transform:translate(-50%,-14px);
+  max-width:calc(100vw - 40px);padding:11px 22px;border-radius:24px;background:rgba(255,255,255,.96);color:var(--ink);font-size:13px;letter-spacing:.08em;
+  box-shadow:0 12px 32px -14px rgba(90,75,40,.4),inset 0 0 0 1px rgba(205,180,126,.5);opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .3s ease,transform .3s ease,visibility 0s linear .3s}
+.toast.show{opacity:1;visibility:visible;transform:translate(-50%,0);transition:opacity .3s ease,transform .3s ease,visibility 0s}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition-duration:.01ms!important;transition-delay:0s!important}
+}
+</style>
+</head>
+<body>
+
+<!-- 光の輪の部品（見えない定義） -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="gBody" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#EBDDB4"/>
+      <stop offset=".3" stop-color="#CDB278"/>
+      <stop offset=".52" stop-color="#F3EBD3"/>
+      <stop offset=".76" stop-color="#C2A663"/>
+      <stop offset="1" stop-color="#E2D2A2"/>
+    </linearGradient>
+    <linearGradient id="gSky" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#CFE3EF" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#CFE3EF" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#CFE3EF" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="gDisc" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset=".8" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="1" stop-color="#EAD9AE" stop-opacity=".26"/>
+    </radialGradient>
+    <linearGradient id="gArea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#CDB47E" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#CDB47E" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="fBlurS" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>
+    <filter id="fBlurM" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3.5"/></filter>
+    <filter id="fBlurL" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter>
+    <symbol id="ring" viewBox="0 0 320 320">
+      <circle cx="160" cy="160" r="112" fill="url(#gDisc)"/>
+      <circle cx="160" cy="160" r="124" fill="none" stroke="url(#gSky)" stroke-width="7" opacity=".6" filter="url(#fBlurM)"/>
+      <path d="M42 160a118 118 0 1 0 236 0a118 118 0 1 0-236 0ZM46.4 161.3a115.5 115.5 0 1 0 231 0a115.5 115.5 0 1 0-231 0Z" fill="url(#gBody)" fill-rule="evenodd" opacity=".55" filter="url(#fBlurL)"/>
+      <path d="M42 160a118 118 0 1 0 236 0a118 118 0 1 0-236 0ZM46.4 161.3a115.5 115.5 0 1 0 231 0a115.5 115.5 0 1 0-231 0Z" fill="url(#gBody)" fill-rule="evenodd"/>
+      <circle cx="160" cy="160" r="118" fill="none" stroke="url(#gBody)" stroke-width=".7" opacity=".75"/>
+      <circle cx="77" cy="77" r="5" fill="#FFFFFF" opacity=".9" filter="url(#fBlurS)"/>
+      <circle cx="77.2" cy="77.2" r="1.1" fill="#FFFFFF"/>
+    </symbol>
+    <symbol id="ringS" viewBox="0 0 320 320">
+      <path d="M20 160a140 140 0 1 0 280 0a140 140 0 1 0-280 0ZM36 157a124 124 0 1 0 248 0a124 124 0 1 0-248 0Z" fill="url(#gBody)" fill-rule="evenodd"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div id="app" class="intro">
+  <div class="wrap">
+    <header class="top">
+      <svg viewBox="0 0 320 320" aria-hidden="true"><use href="#ringS" width="320" height="320"/></svg>
+      <span class="brand">環</span>
+      <span class="brand-sub">貯金の記録</span>
+    </header>
+    <div id="banner" class="banner" role="status"></div>
+
+    <main>
+      <section id="screen-home" class="screen on" aria-label="ホーム">
+        <div class="hero">
+          <div class="ring-wrap" id="ringWrap">
+            <div class="ring-halo"></div>
+            <svg class="ring-svg" viewBox="0 0 320 320" aria-hidden="true"><use href="#ring" width="320" height="320"/></svg>
+            <div class="ring-center" id="ringCenter"></div>
+          </div>
+        </div>
+        <div id="homeBelow"></div>
+      </section>
+
+      <section id="screen-future" class="screen" aria-label="未来">
+        <h1 class="screen-title">未来</h1>
+        <p class="screen-sub">いまのペースが続いたら</p>
+        <div class="mini-ring">
+          <div class="ring-wrap">
+            <div class="ring-halo"></div>
+            <svg class="ring-svg" viewBox="0 0 320 320" aria-hidden="true"><use href="#ring" width="320" height="320"/></svg>
+          </div>
+        </div>
+        <div id="futureBody"></div>
+      </section>
+
+      <section id="screen-history" class="screen" aria-label="履歴と設定">
+        <h1 class="screen-title">履歴</h1>
+        <p class="screen-sub">積み重ねてきた時間</p>
+        <div id="historyBody"></div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="nav" aria-label="メインメニュー">
+    <div class="nav-in">
+      <button type="button" data-go="home" aria-current="page"><span>ホーム</span></button>
+      <button type="button" data-go="future"><span>未来</span></button>
+      <button type="button" data-go="history"><span>履歴</span></button>
+    </div>
+  </nav>
+</div>
+
+<div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-hidden="true">
+  <div class="sheet-head">
+    <button type="button" class="sheet-close" id="sheetClose">閉じる</button>
+    <h2 class="sheet-title" id="sheetTitle"></h2>
+    <span></span>
+  </div>
+  <div class="sheet-body" id="sheetBody"></div>
+</div>
+
+<div id="dialog" class="dlg" role="alertdialog" aria-modal="true" aria-hidden="true"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* =========================================================
+   定数
+   ========================================================= */
+var KEY='wa.savings.v1';
+var MAX_AMOUNT=999999999999;
+var MAX_MEMO=60;
+var HORIZONS=[
+  {months:12,label:'1年後'},
+  {months:36,label:'3年後'},
+  {months:60,label:'5年後'},
+  {months:120,label:'10年後'}
+];
+
+/* =========================================================
+   小さな道具
+   ========================================================= */
+function $(id){return document.getElementById(id);}
+function esc(s){
+  return String(s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function pad2(n){return n<10?'0'+n:''+n;}
+function addCommas(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+function fmtInt(n){return (n<0?'−':'')+addCommas(String(Math.abs(n)));}
+function fmtSigned(n){return n>0?'+'+fmtInt(n):(n<0?fmtInt(n):'±0');}
+function N(n){return '<span class="n">'+fmtInt(n)+'</span>';}
+function toHalf(s){
+  return String(s).replace(/[０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);});
+}
+function manText(n){
+  if(n<10000) return fmtInt(n)+'円';
+  var oku=Math.floor(n/100000000);
+  var man=Math.floor((n%100000000)/10000);
+  var rest=n%10000;
+  var s='';
+  if(oku) s+=fmtInt(oku)+'億';
+  if(man) s+=man+'万';
+  if(rest) s+=fmtInt(rest);
+  return s+'円';
+}
+/* 整数どうしの割り算を、四捨五入（0から遠い方向）で整数にする */
+function divRound(num,den){
+  var neg=num<0;
+  var a=Math.abs(num);
+  var q=Math.floor(a/den);
+  var r=a-q*den;
+  if(r<0){q-=1;r+=den;}
+  if(r>=den){q+=1;r-=den;}
+  var res=(2*r>=den)?q+1:q;
+  return neg?-res:res;
+}
+
+/* ---- 年月 ---- */
+function keyOf(y,m){return y+'-'+pad2(m);}
+function parseKey(k){
+  var m=/^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(k));
+  if(!m) return null;
+  var y=+m[1],mo=+m[2];
+  return {y:y,mo:mo,idx:y*12+mo-1};
+}
+function labelOf(k){var p=parseKey(k);return p.y+'年'+p.mo+'月';}
+function idxLabel(idx){return Math.floor(idx/12)+'年'+(idx%12+1)+'月';}
+function nowIdx(){var d=new Date();return d.getFullYear()*12+d.getMonth();}
+
+/* =========================================================
+   データ（保存・読み込み・検証）
+   ========================================================= */
+var state={records:{},meta:{lastBackupAt:null}};
+var storageOK=true;
+var loadNote=null;
+
+function makeRecord(key,a,memo,t){
+  var p=parseKey(key);
+  return {key:key,idx:p.idx,y:p.y,mo:p.mo,a:a,memo:memo,t:t};
+}
+function cleanMemo(s){
+  return String(s||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,MAX_MEMO);
+}
+function validateData(obj){
+  if(!obj||typeof obj!=='object'||obj.v!==1||!Array.isArray(obj.records)) throw new Error('format');
+  if(obj.records.length>2400) throw new Error('count');
+  var recs={};
+  obj.records.forEach(function(r){
+    if(!r||typeof r!=='object') throw new Error('record');
+    var p=parseKey(r.m);
+    if(!p||p.y<1900||p.y>2200) throw new Error('month');
+    if(typeof r.a!=='number'||!isFinite(r.a)||Math.floor(r.a)!==r.a||r.a<0||r.a>MAX_AMOUNT) throw new Error('amount');
+    var t=(typeof r.t==='string'&&r.t.length<=40)?r.t:'';
+    recs[r.m]=makeRecord(r.m,r.a,cleanMemo(typeof r.memo==='string'?r.memo:''),t);
+  });
+  var lb=null;
+  if(obj.meta&&typeof obj.meta.lastBackupAt==='string'&&!isNaN(Date.parse(obj.meta.lastBackupAt))) lb=obj.meta.lastBackupAt;
+  return {records:recs,meta:{lastBackupAt:lb}};
+}
+function sortedList(){
+  return Object.keys(state.records).map(function(k){return state.records[k];}).sort(function(a,b){return a.idx-b.idx;});
+}
+function serialize(extra){
+  var o={v:1,records:sortedList().map(function(r){return {m:r.key,a:r.a,memo:r.memo,t:r.t};}),meta:{lastBackupAt:state.meta.lastBackupAt}};
+  if(extra){for(var k in extra){o[k]=extra[k];}}
+  return o;
+}
+function loadState(){
+  try{
+    localStorage.setItem('__wa_probe','1');
+    localStorage.removeItem('__wa_probe');
+  }catch(e){storageOK=false;return;}
+  var raw=null;
+  try{raw=localStorage.getItem(KEY);}catch(e2){storageOK=false;return;}
+  if(raw===null) return;
+  try{
+    var d=validateData(JSON.parse(raw));
+    state.records=d.records;
+    state.meta=d.meta;
+  }catch(e3){
+    loadNote='corrupt';
+    try{localStorage.setItem(KEY+'.corrupt',raw);}catch(e4){}
+  }
+}
+function persist(){
+  if(!storageOK) return {ok:true,volatile:true};
+  var payload=JSON.stringify(serialize());
+  try{
+    localStorage.setItem(KEY,payload);
+    if(localStorage.getItem(KEY)!==payload) throw new Error('verify');
+    return {ok:true};
+  }catch(e){
+    return {ok:false};
+  }
+}
+/* 変更して保存する。保存に失敗したら元に戻す */
+function commit(mutator){
+  var snap={records:Object.assign({},state.records),meta:Object.assign({},state.meta)};
+  mutator();
+  var r=persist();
+  if(!r.ok){state.records=snap.records;state.meta=snap.meta;}
+  return r;
+}
+
+/* ---- バックアップの文字 ---- */
+function encodeBackup(){
+  var json=JSON.stringify(serialize({app:'wa-savings',exportedAt:new Date().toISOString()}));
+  return 'WA1:'+btoa(unescape(encodeURIComponent(json)));
+}
+function decodeBackup(text){
+  var t=String(text||'').replace(/^\uFEFF/,'').trim();
+  if(!t) throw new Error('empty');
+  var json;
+  if(t.indexOf('WA1:')===0){
+    json=decodeURIComponent(escape(atob(t.slice(4).replace(/\s+/g,''))));
+  }else if(t.charAt(0)==='{'){
+    json=t;
+  }else{
+    throw new Error('format');
+  }
+  var obj=JSON.parse(json);
+  if(obj&&obj.app!==undefined&&obj.app!=='wa-savings') throw new Error('app');
+  return validateData(obj);
+}
+
+/* =========================================================
+   計算
+   ========================================================= */
+function calc(){
+  var list=sortedList();
+  var n=list.length;
+  var c={list:list,n:n,latest:null,first:null,prev:null,delta:null,gap:null,total:null,span:null,avg:null,avgExact:true,forecast:[]};
+  if(n===0) return c;
+  c.latest=list[n-1];
+  c.first=list[0];
+  if(n>=2){
+    c.prev=list[n-2];
+    c.delta=c.latest.a-c.prev.a;
+    c.gap=c.latest.idx-c.prev.idx;
+    c.total=c.latest.a-c.first.a;
+    c.span=c.latest.idx-c.first.idx;
+    c.avg=divRound(c.total,c.span);
+    c.avgExact=(c.total%c.span===0);
+    c.forecast=HORIZONS.map(function(h){
+      return {label:h.label,months:h.months,idx:c.latest.idx+h.months,value:c.latest.a+divRound(c.total*h.months,c.span)};
+    });
+  }
+  return c;
+}
+function signClass(n){return n>0?'up':(n<0?'down':'flat');}
+function deltaInfo(d){
+  if(d>0) return {cls:'up',html:'前回より'+N(d)+'円増えました'};
+  if(d<0) return {cls:'down',html:'前回より'+N(-d)+'円減りました'};
+  return {cls:'flat',html:'貯金額を維持しました'};
+}
+function gapCaption(c){
+  var base=labelOf(c.prev.key)+'の記録との差額です。';
+  return c.gap===1?base:base+c.gap+'か月間の増減で、1か月分ではありません。';
+}
+
+/* =========================================================
+   画面の描画
+   ========================================================= */
+var currentScreen='home';
+
+function ringFactor(len){
+  if(len<=7) return .15;
+  if(len<=9) return .13;
+  if(len<=11) return .105;
+  if(len<=13) return .092;
+  return .082;
+}
+function backupDue(c){
+  if(c.n<2) return false;
+  var lb=state.meta.lastBackupAt;
+  if(!lb) return true;
+  return (Date.now()-Date.parse(lb))>45*86400000;
+}
+
+function renderBanner(){
+  var msgs=[];
+  if(!storageOK) msgs.push('この環境では記録を保存できません。ページを閉じると消えてしまうので、バックアップをコピーしてください。');
+  if(loadNote==='corrupt') msgs.push('保存されていたデータを読み込めませんでした。元のデータは端末の中に退避してあります。');
+  $('banner').innerHTML=msgs.map(function(m){return '<p>'+esc(m)+'</p>';}).join('');
+}
+
+function renderHome(){
+  var c=calc();
+  var ctr=$('ringCenter'),below=$('homeBelow');
+  if(c.n===0){
+    ctr.innerHTML='<p class="ring-verse">静かに積み重ね、<br>未来を見つめる。</p>';
+    below.innerHTML=
+      '<p class="lead">給料日の前日の貯金総額を、<br>月に一度だけ記録します。</p>'+
+      '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button></div>';
+    return;
+  }
+  var s=fmtInt(c.latest.a);
+  ctr.innerHTML=
+    '<p class="ring-k">いまの貯金総額</p>'+
+    '<p class="amount" style="font-size:calc(var(--ring) * '+ringFactor(s.length)+')">'+s+'<span class="yen">円</span></p>'+
+    '<p class="ring-m">'+labelOf(c.latest.key)+'の記録</p>';
+
+  var deltaHtml,avgHtml;
+  if(c.prev){
+    var di=deltaInfo(c.delta);
+    deltaHtml='<p class="delta '+di.cls+'">'+di.html+'</p><p class="cap">'+gapCaption(c)+'</p>';
+  }else{
+    deltaHtml='<p class="delta mute">最初の記録です</p><p class="cap">次の月の記録を追加すると、増減がわかります。</p>';
+  }
+  if(c.n>=2){
+    var sc=signClass(c.avg);
+    avgHtml=
+      '<div class="avg"><span class="avg-k">月平均</span><span class="avg-v n '+sc+'">'+fmtSigned(c.avg)+'</span><span class="avg-u">円</span></div>'+
+      '<p class="cap">'+labelOf(c.first.key)+'から'+labelOf(c.latest.key)+'までの'+c.span+'か月間</p>'+
+      '<button type="button" class="peek" data-go="future"><span class="peek-k">1年後の予想</span><span class="n '+(c.forecast[0].value<0?'down':'')+'">'+fmtInt(c.forecast[0].value)+'円</span></button>'+
+      '<button type="button" class="link" data-act="method">算出方法を見る</button>';
+  }else{
+    avgHtml='<p class="cap">あと1件記録すると、<br>月平均と未来の予想が見えてきます。</p>';
+  }
+  var nudge=backupDue(c)?
+    '<p class="nudge">記録は、この端末の中だけに保存されています。<br><button type="button" class="link" style="display:inline-block;margin:0" data-act="backup">バックアップを作る</button></p>':'';
+  below.innerHTML=
+    '<div class="delta-block">'+deltaHtml+'</div>'+
+    '<div class="avg-block">'+avgHtml+'</div>'+
+    '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button></div>'+
+    nudge+
+    '<p class="tagline">静かに積み重ね、未来を見つめる。</p>';
+}
+
+function renderFuture(){
+  var c=calc(),el=$('futureBody');
+  if(c.n<2){
+    el.innerHTML=
+      '<p class="lead">記録が2件以上たまると、<br>1年後から10年後までの予想が表示されます。</p>'+
+      (c.n===1?'<p class="cap" style="text-align:center">いまの記録は1件です。あと1件で表示されます。</p>':'')+
+      '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button></div>';
+    return;
+  }
+  var maxAbs=1;
+  c.forecast.forEach(function(f){maxAbs=Math.max(maxAbs,Math.abs(f.value));});
+  var anyNeg=false;
+  var items=c.forecast.map(function(f){
+    var neg=f.value<0; if(neg) anyNeg=true;
+    var txt=fmtInt(f.value);
+    var size=txt.length<=9?'fs-l':(txt.length<=12?'fs-m':'fs-s');
+    var diff=f.value-c.latest.a;
+    var diffHtml=diff===0?'いまと同じ':'いまより <span class="'+signClass(diff)+'">'+fmtSigned(diff)+'円</span>';
+    var w=Math.max(3,Math.round(Math.abs(f.value)/maxAbs*100));
+    return '<li class="tl-item">'+
+      '<div class="tl-head"><span class="tl-k">'+f.label+'</span><span class="tl-d">'+idxLabel(f.idx)+'</span></div>'+
+      '<p class="tl-v '+size+' '+(neg?'down':'')+'"><span>'+txt+'</span><span class="u">円</span></p>'+
+      '<p class="tl-delta">'+diffHtml+'</p>'+
+      '<div class="bar"><i class="'+(neg?'neg':'')+'" style="width:'+w+'%"></i></div>'+
+      '</li>';
+  }).join('');
+  el.innerHTML=
+    '<div class="pace"><p class="cap">いまの月平均</p>'+
+    '<p class="pace-v '+signClass(c.avg)+'"><span>'+fmtSigned(c.avg)+'</span><span class="u">円 / 月</span></p>'+
+    '<p class="cap">'+labelOf(c.latest.key)+'の貯金総額 '+fmtInt(c.latest.a)+'円 から数えています</p></div>'+
+    '<ol class="tl">'+items+'</ol>'+
+    '<div class="notes">'+
+    '<p>この予想は、いまの月平均が今後も続いた場合の単純な試算です。将来の貯金額を保証するものではありません。</p>'+
+    '<p>利息や投資の収益は含まれていません。</p>'+
+    (anyNeg?'<p>マイナスの金額は、いまの減少ペースが続くと貯金が足りなくなる計算になる、という意味です。実際にそうなると決まっているわけではありません。</p>':'')+
+    '</div>'+
+    '<button type="button" class="link" data-act="method">算出方法を見る</button>';
+}
+
+var chartPts=[];
+function chartHTML(list){
+  var W=340,H=150,pl=10,pr=10,pt=16,pb=28;
+  var x0=list[0].idx,x1=list[list.length-1].idx,span=x1-x0;
+  var min=Infinity,max=-Infinity;
+  list.forEach(function(r){min=Math.min(min,r.a);max=Math.max(max,r.a);});
+  chartPts=list.map(function(r){
+    var x=pl+(r.idx-x0)/span*(W-pl-pr);
+    var y=(max===min)?(pt+(H-pt-pb)/2):pt+(1-(r.a-min)/(max-min))*(H-pt-pb);
+    return {x:x,y:y,r:r};
+  });
+  var line='M'+chartPts.map(function(p){return p.x.toFixed(1)+' '+p.y.toFixed(1);}).join(' L');
+  var last=chartPts[chartPts.length-1],first=chartPts[0];
+  var area=line+' L'+last.x.toFixed(1)+' '+(H-pb)+' L'+first.x.toFixed(1)+' '+(H-pb)+' Z';
+  var dots='';
+  if(chartPts.length<=36){
+    dots=chartPts.map(function(p){return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="2.4" fill="#fff" stroke="#CDB47E" stroke-width="1.2"/>';}).join('');
+  }
+  return '<svg id="chartSvg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="貯金総額の推移">'+
+    '<path d="'+area+'" fill="url(#gArea)"/>'+
+    '<path d="'+line+'" fill="none" stroke="#CDB47E" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>'+
+    dots+
+    '<line id="chartCursor" x1="0" x2="0" y1="'+pt+'" y2="'+(H-pb)+'" stroke="#CDB47E" stroke-width=".8" stroke-dasharray="2 3" opacity="0"/>'+
+    '<circle id="chartHalo" cx="'+last.x.toFixed(1)+'" cy="'+last.y.toFixed(1)+'" r="9" fill="#CDB47E" opacity=".2"/>'+
+    '<circle id="chartDot" cx="'+last.x.toFixed(1)+'" cy="'+last.y.toFixed(1)+'" r="4" fill="#fff" stroke="#B8994F" stroke-width="1.6"/>'+
+    '<text x="'+pl+'" y="'+(H-6)+'" font-size="10" fill="#8A8B90" font-family="Zen Kaku Gothic New, sans-serif">'+esc(labelOf(list[0].key))+'</text>'+
+    '<text x="'+(W-pr)+'" y="'+(H-6)+'" font-size="10" fill="#8A8B90" text-anchor="end" font-family="Zen Kaku Gothic New, sans-serif">'+esc(labelOf(list[list.length-1].key))+'</text>'+
+    '</svg>';
+}
+function setChartActive(i){
+  var p=chartPts[i];
+  if(!p) return;
+  var cur=$('chartCursor'),dot=$('chartDot'),halo=$('chartHalo'),cap=$('chartCap');
+  if(!dot||!cap) return;
+  dot.setAttribute('cx',p.x.toFixed(1));dot.setAttribute('cy',p.y.toFixed(1));
+  halo.setAttribute('cx',p.x.toFixed(1));halo.setAttribute('cy',p.y.toFixed(1));
+  cur.setAttribute('x1',p.x.toFixed(1));cur.setAttribute('x2',p.x.toFixed(1));
+  cur.setAttribute('opacity',i===chartPts.length-1?'0':'1');
+  cap.innerHTML=labelOf(p.r.key)+'　'+N(p.r.a)+'円';
+}
+function bindChart(){
+  var svg=$('chartSvg');
+  if(!svg) return;
+  function pick(e){
+    var rect=svg.getBoundingClientRect();
+    if(!rect.width) return;
+    var x=(e.clientX-rect.left)/rect.width*340;
+    var best=0,bd=Infinity;
+    chartPts.forEach(function(p,i){var d=Math.abs(p.x-x);if(d<bd){bd=d;best=i;}});
+    setChartActive(best);
+  }
+  svg.addEventListener('pointerdown',pick);
+  svg.addEventListener('pointermove',function(e){if(e.pointerType==='mouse'||e.buttons) pick(e);});
+  svg.addEventListener('pointerleave',function(e){if(e.pointerType==='mouse') setChartActive(chartPts.length-1);});
+  setChartActive(chartPts.length-1);
+}
+
+function lastBackupText(){
+  var lb=state.meta.lastBackupAt;
+  if(!lb) return 'まだ作っていません';
+  var d=new Date(lb);
+  return d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日';
+}
+
+function renderHistory(){
+  var c=calc(),el=$('historyBody');
+  var html='';
+  if(c.n===0){
+    html+='<p class="lead">まだ記録がありません。</p>'+
+      '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button></div>';
+    chartPts=[];
+  }else{
+    if(c.n>=2){
+      html+='<div class="chart"><p class="chart-cap" id="chartCap"></p>'+chartHTML(c.list)+'</div>';
+    }else{
+      chartPts=[];
+    }
+    html+='<p class="hint">記録をタップすると、編集や削除ができます。</p><div class="list">';
+    var lastYear=null;
+    for(var i=c.n-1;i>=0;i--){
+      var r=c.list[i],prev=i>0?c.list[i-1]:null;
+      if(r.y!==lastYear){html+='<p class="year">'+r.y+'</p>';lastYear=r.y;}
+      var dHtml;
+      if(!prev){
+        dHtml='<span class="mute">最初の記録</span>';
+      }else{
+        var d=r.a-prev.a,gap=r.idx-prev.idx;
+        var dt=d===0?'±0円':fmtSigned(d)+'円';
+        dHtml='<span class="'+signClass(d)+'">'+dt+'</span>'+(gap>1?'<span class="mute">　'+gap+'か月間</span>':'');
+      }
+      html+='<button type="button" class="row" data-edit="'+r.key+'">'+
+        '<span class="row-l"><span class="row-m">'+r.mo+'月</span>'+(r.memo?'<span class="row-memo" style="display:block">'+esc(r.memo)+'</span>':'')+'</span>'+
+        '<span class="row-r"><span class="row-a" style="display:block">'+fmtInt(r.a)+'<span class="u">円</span></span><span class="row-d" style="display:block">'+dHtml+'</span></span>'+
+        '</button>';
+    }
+    html+='</div>';
+  }
+  html+=
+    '<div class="settings"><h2 class="sec">設定</h2>'+
+    '<button type="button" class="srow" data-act="backup"><span>バックアップを作る</span><span class="sv">最後：'+esc(lastBackupText())+'</span></button>'+
+    '<button type="button" class="srow" data-act="restore"><span>バックアップから復元する</span></button>'+
+    '<button type="button" class="srow" data-act="method"><span>算出方法を見る</span></button>'+
+    '<button type="button" class="srow" data-act="a2hs"><span>ホーム画面に追加する</span></button>'+
+    '<button type="button" class="srow danger" data-act="wipe"><span>すべての記録を削除</span></button>'+
+    '<p class="foot">記録は、この端末のブラウザの中だけに保存されます。インターネットには送られません。ブラウザのデータを消すと記録も消えるため、ときどきバックアップを作っておくと安心です。</p></div>';
+  el.innerHTML=html;
+  bindChart();
+}
+
+function renderAll(){
+  renderBanner();
+  renderHome();
+  renderFuture();
+  renderHistory();
+}
+
+function go(name){
+  ['home','future','history'].forEach(function(n){
+    $('screen-'+n).classList.toggle('on',n===name);
+  });
+  var btns=document.querySelectorAll('.nav [data-go]');
+  for(var i=0;i<btns.length;i++){
+    if(btns[i].getAttribute('data-go')===name) btns[i].setAttribute('aria-current','page');
+    else btns[i].removeAttribute('aria-current');
+  }
+  currentScreen=name;
+  window.scrollTo(0,0);
+}
+
+/* =========================================================
+   トースト・ダイアログ・シート
+   ========================================================= */
+var toastTimer=null;
+function toast(msg){
+  var t=$('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove('show');},2600);
+}
+function pulseRing(){
+  var w=$('ringWrap');
+  w.classList.remove('pulse');
+  void w.offsetWidth;
+  w.classList.add('pulse');
+  setTimeout(function(){w.classList.remove('pulse');},2200);
+}
+
+var dialogOpen=false;
+function ask(opt){
+  return new Promise(function(resolve){
+    var dlg=$('dialog');
+    var prevFocus=document.activeElement;
+    dlg.innerHTML=
+      '<div class="dlg-card">'+
+      '<h2 class="dlg-title">'+esc(opt.title)+'</h2>'+
+      '<p class="dlg-body">'+esc(opt.body)+'</p>'+
+      '<div class="dlg-btns">'+
+      '<button type="button" class="dlg-cancel" id="dlgCancel">'+esc(opt.cancel||'キャンセル')+'</button>'+
+      '<button type="button" class="dlg-ok'+(opt.danger?' danger':'')+'" id="dlgOk">'+esc(opt.ok||'OK')+'</button>'+
+      '</div></div>';
+    dlg.classList.add('open');
+    dlg.setAttribute('aria-hidden','false');
+    dialogOpen=true;
+    function done(v){
+      dlg.classList.remove('open');
+      dlg.setAttribute('aria-hidden','true');
+      dialogOpen=false;
+      document.removeEventListener('keydown',onKey,true);
+      setTimeout(function(){if(!dialogOpen) dlg.innerHTML='';},300);
+      if(prevFocus&&prevFocus.focus&&document.body.contains(prevFocus)){try{prevFocus.focus({preventScroll:true});}catch(e){}}
+      resolve(v);
+    }
+    function onKey(e){
+      if(e.key==='Escape'){e.stopPropagation();e.preventDefault();done(false);}
+    }
+    document.addEventListener('keydown',onKey,true);
+    $('dlgCancel').addEventListener('click',function(){done(false);});
+    $('dlgOk').addEventListener('click',function(){done(true);});
+    try{$('dlgCancel').focus({preventScroll:true});}catch(e){}
+  });
+}
+
+var sheetOpen=false,sheetFocus=null,sheetToken=0;
+function setInert(on){
+  var app=$('app');
+  if(on){app.setAttribute('inert','');app.setAttribute('aria-hidden','true');}
+  else{app.removeAttribute('inert');app.removeAttribute('aria-hidden');}
+}
+function openSheet(title,html,onOpen){
+  sheetToken++;
+  $('sheetTitle').textContent=title;
+  $('sheetBody').innerHTML=html;
+  var sh=$('sheet');
+  if(!sheetOpen) sheetFocus=document.activeElement;
+  sh.classList.add('open');
+  sh.setAttribute('aria-hidden','false');
+  sh.scrollTop=0;
+  sheetOpen=true;
+  setInert(true);
+  if(onOpen) onOpen();
+}
+function closeSheet(){
+  if(!sheetOpen) return;
+  var sh=$('sheet');
+  sh.classList.remove('open');
+  sh.setAttribute('aria-hidden','true');
+  sheetOpen=false;
+  setInert(false);
+  var tk=++sheetToken;
+  setTimeout(function(){if(tk===sheetToken&&!sheetOpen) $('sheetBody').innerHTML='';},500);
+  if(sheetFocus&&sheetFocus.focus&&document.body.contains(sheetFocus)){try{sheetFocus.focus({preventScroll:true});}catch(e){}}
+}
+
+/* =========================================================
+   記録シート
+   ========================================================= */
+function openRecord(editKey){
+  var cur=nowIdx();
+  var cy=Math.floor(cur/12),cm=cur%12+1;
+  var initKey=editKey||keyOf(cy,cm);
+  var ip=parseKey(initKey);
+  var list=sortedList();
+  var minY=Math.min(2000,ip.y,list.length?list[0].y:2000);
+  var maxY=Math.max(cy+1,ip.y,list.length?list[list.length-1].y:cy+1);
+  var yo='';
+  for(var y=minY;y<=maxY;y++) yo+='<option value="'+y+'"'+(y===ip.y?' selected':'')+'>'+y+'</option>';
+  var mo='';
+  for(var m=1;m<=12;m++) mo+='<option value="'+m+'"'+(m===ip.mo?' selected':'')+'>'+m+'</option>';
+  var html=
+    '<p class="sheet-lead">給料日の前日の時点の、貯金の合計を入力します。</p>'+
+    '<div class="ym">'+
+      '<label class="sr" for="selYear">対象の年</label><select id="selYear">'+yo+'</select><span>年</span>'+
+      '<label class="sr" for="selMonth">対象の月</label><select id="selMonth">'+mo+'</select><span>月</span>'+
+    '</div>'+
+    '<p id="noteMonth" class="note"></p>'+
+    '<div class="amount-line"><label class="sr" for="inAmount">貯金総額（円）</label>'+
+      '<input id="inAmount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="0">'+
+      '<span class="yen-u">円</span></div>'+
+    '<p id="amountRead" class="read"></p>'+
+    '<div id="preview" class="preview"></div>'+
+    '<div class="field"><label for="inMemo">メモ（任意）</label>'+
+      '<input id="inMemo" type="text" maxlength="'+MAX_MEMO+'" autocomplete="off" placeholder="ボーナス、旅行の支払いなど"></div>'+
+    '<p id="formError" class="err" role="alert"></p>'+
+    '<button type="button" id="btnSave" class="btn">保存する</button>'+
+    '<button type="button" id="btnDelete" class="link danger" hidden>この記録を削除する</button>';
+  openSheet(editKey?'記録を編集':'貯金を記録',html,function(){bindRecordForm(editKey,initKey);});
+}
+
+function bindRecordForm(editKey,initKey){
+  var selYear=$('selYear'),selMonth=$('selMonth'),inAmount=$('inAmount'),inMemo=$('inMemo');
+  var noteMonth=$('noteMonth'),amountRead=$('amountRead'),preview=$('preview'),formError=$('formError');
+  var btnSave=$('btnSave'),btnDelete=$('btnDelete');
+  var amountTouched=false;
+
+  function selKey(){return keyOf(+selYear.value,+selMonth.value);}
+  function digitsOf(s){return toHalf(s).replace(/[^0-9]/g,'');}
+  function parseAmt(){
+    var d=digitsOf(inAmount.value);
+    if(d==='') return null;
+    return Number(d);
+  }
+  function fitInput(){
+    var len=inAmount.value.length;
+    inAmount.style.fontSize=(len<=9?44:(len<=12?38:(len<=14?32:28)))+'px';
+  }
+  function prefill(rec){
+    inAmount.value=addCommas(String(rec.a));
+    inMemo.value=rec.memo;
+    fitInput();
+  }
+  function refresh(){
+    var k=selKey(),p=parseKey(k),ex=state.records[k],amt=parseAmt();
+    var notes=[];
+    if(editKey&&k!==editKey) notes.push(labelOf(editKey)+'の記録を、'+labelOf(k)+'へ移します。');
+    if(ex&&(!editKey||k!==editKey)) notes.push(labelOf(k)+'にはすでに記録があります（'+fmtInt(ex.a)+'円）。保存すると、置きかわります。');
+    else if(ex) notes.push('この月の記録を更新します（いまの記録：'+fmtInt(ex.a)+'円）。');
+    if(p.idx>nowIdx()) notes.push('まだ先の月です。保存する前に確認します。');
+    noteMonth.innerHTML=notes.map(function(s){return esc(s);}).join('<br>');
+    var delKey=editKey||k;
+    btnDelete.hidden=!state.records[delKey];
+    btnSave.textContent=(ex||editKey)?'更新する':'保存する';
+    amountRead.textContent=(amt!==null&&amt>=10000)?'＝ '+manText(amt):'';
+    /* 前回との差額のプレビュー */
+    var prev=null,hasLater=false;
+    sortedList().forEach(function(r){
+      if(r.key===k||(editKey&&r.key===editKey&&k!==editKey)) return;
+      if(r.idx<p.idx) prev=r;
+      else if(r.idx>p.idx) hasLater=true;
+    });
+    if(amt===null){
+      preview.innerHTML='<p class="cap">金額を入れると、前回との差額が表示されます。</p>';
+    }else if(prev){
+      var d=amt-prev.a,gap=p.idx-prev.idx,txt,cls;
+      if(d>0){cls='up';txt='前回より'+N(d)+'円増えます';}
+      else if(d<0){cls='down';txt='前回より'+N(-d)+'円減ります';}
+      else{cls='flat';txt='前回と同じ金額です';}
+      preview.innerHTML='<p class="pv '+cls+'">'+txt+'</p><p class="cap">'+
+        (gap===1?labelOf(prev.key)+'との差額':labelOf(prev.key)+'の記録との差額（'+gap+'か月間）')+'</p>';
+    }else{
+      preview.innerHTML='<p class="pv mute">'+(hasLater?'この月が、いちばん古い記録になります':'最初の記録になります')+'</p>';
+    }
+  }
+
+  inAmount.addEventListener('input',function(e){
+    if(e.isComposing) return;
+    amountTouched=true;
+    var raw=inAmount.value,caret=inAmount.selectionStart;
+    if(caret===null||caret===undefined) caret=raw.length;
+    var before=digitsOf(raw.slice(0,caret)).length;
+    var d=digitsOf(raw).replace(/^0+(?=\d)/,'');
+    var over=false;
+    if(d.length>12){d=d.slice(0,12);over=true;}
+    var f=d?addCommas(d):'';
+    inAmount.value=f;
+    var pos=0,cnt=0;
+    while(pos<f.length&&cnt<before){if(/\d/.test(f.charAt(pos))) cnt++;pos++;}
+    try{inAmount.setSelectionRange(pos,pos);}catch(err){}
+    formError.textContent=over?'入力できるのは12桁（999,999,999,999円）までです。':'';
+    fitInput();
+    refresh();
+  });
+  inAmount.addEventListener('compositionend',function(){inAmount.dispatchEvent(new Event('input'));});
+  inMemo.addEventListener('input',function(){formError.textContent='';});
+  function onMonthChange(){
+    var ex=state.records[selKey()];
+    if(ex&&!amountTouched&&digitsOf(inAmount.value)===''){prefill(ex);}
+    formError.textContent='';
+    refresh();
+  }
+  selYear.addEventListener('change',onMonthChange);
+  selMonth.addEventListener('change',onMonthChange);
+
+  var saving=false;
+  async function doSave(){
+    if(saving) return;
+    var k=selKey(),p=parseKey(k),amt=parseAmt();
+    if(amt===null){formError.textContent='貯金総額を入力してください。';inAmount.focus();return;}
+    if(!isFinite(amt)||amt<0||amt>MAX_AMOUNT||Math.floor(amt)!==amt){formError.textContent='0円から999,999,999,999円までの金額を入力してください。';inAmount.focus();return;}
+    var memo=cleanMemo(inMemo.value);
+    if(p.idx>nowIdx()){
+      var okFuture=await ask({title:'先の月の記録です',body:labelOf(k)+'は、まだ先の月です。この月の記録として保存しますか？',ok:'保存する',cancel:'見直す'});
+      if(!okFuture) return;
+    }
+    saving=true;
+    var existed=!!state.records[k];
+    var moved=!!(editKey&&editKey!==k);
+    var r=commit(function(){
+      var recs=Object.assign({},state.records);
+      if(moved) delete recs[editKey];
+      recs[k]=makeRecord(k,amt,memo,new Date().toISOString());
+      state.records=recs;
+    });
+    saving=false;
+    if(!r.ok){formError.textContent='保存できませんでした。端末の空き容量や、ブラウザの設定を確認してください。';return;}
+    closeSheet();
+    renderAll();
+    pulseRing();
+    toast(labelOf(k)+'の記録を'+((existed||(editKey&&!moved))?'更新':'保存')+'しました'+(r.volatile?'（この端末には残りません）':''));
+  }
+  async function doDelete(){
+    var dk=editKey||selKey();
+    var rec=state.records[dk];
+    if(!rec) return;
+    var ok=await ask({title:labelOf(dk)+'の記録を削除しますか？',body:'貯金総額 '+fmtInt(rec.a)+'円 の記録が消えます。月平均や将来の予想も、残った記録で計算し直されます。',ok:'削除する',cancel:'やめる',danger:true});
+    if(!ok) return;
+    var r=commit(function(){
+      var recs=Object.assign({},state.records);
+      delete recs[dk];
+      state.records=recs;
+    });
+    if(!r.ok){formError.textContent='削除できませんでした。もう一度お試しください。';return;}
+    closeSheet();
+    renderAll();
+    toast(labelOf(dk)+'の記録を削除しました');
+  }
+  btnSave.addEventListener('click',doSave);
+  btnDelete.addEventListener('click',doDelete);
+  inMemo.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSave();}});
+  inAmount.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSave();}});
+
+  var ex0=state.records[initKey];
+  if(ex0) prefill(ex0);
+  refresh();
+  if(!editKey){try{inAmount.focus();}catch(e){}}
+}
+
+/* =========================================================
+   算出方法・バックアップ・復元・ホーム画面
+   ========================================================= */
+function methodHTML(){
+  var c=calc();
+  var h='<h3>月平均の出し方</h3>'+
+    '<p class="formula">（最新の貯金総額 − 最初の貯金総額）<br>÷ 記録のあいだの月数</p>';
+  if(c.n>=2){
+    h+='<p class="body-p">あなたの記録では<br>（'+fmtInt(c.latest.a)+' − '+fmtInt(c.first.a)+'）÷ '+c.span+'か月 ＝ <b>'+fmtSigned(c.avg)+'円</b></p>';
+    if(!c.avgExact) h+='<p class="small">割り切れないため、1円未満は四捨五入して表示しています。</p>';
+  }else{
+    h+='<p class="small">記録が2件以上になると、あなたの数字で計算結果を確認できます。</p>';
+  }
+  h+='<p class="small">記録のない月があっても、最初の記録と最新の記録のあいだの月数で割ります。そのあいだの月の金額は、月平均には使いません。</p>';
+  h+='<h3>将来の予想の出し方</h3>'+
+    '<p class="formula">現在の貯金総額 ＋ 月平均 × 経過月数</p>';
+  if(c.n>=2){
+    var f=c.forecast[0];
+    var op=(c.avgExact?c.avg:c.total)<0?' − ':' ＋ ';
+    var avgPart=c.avgExact?fmtInt(Math.abs(c.avg)):'（'+fmtInt(Math.abs(c.total))+' ÷ '+c.span+'）';
+    h+='<p class="body-p">1年後なら（12か月）<br>'+fmtInt(c.latest.a)+op+avgPart+' × 12 ＝ <b>'+fmtInt(f.value)+'円</b></p>';
+    h+='<p class="small">「現在」は、いちばん新しい記録（'+labelOf(c.latest.key)+'）です。経過月数は 1年後＝12、3年後＝36、5年後＝60、10年後＝120か月です。'+(c.avgExact?'':'月平均が割り切れないときは、月平均を丸める前の値で計算し、答えを四捨五入しています。')+'</p>';
+  }
+  h+='<h3>前回との増減</h3>'+
+    '<p class="body-p">いちばん新しい記録と、そのひとつ前の記録との差額です。月がとんでいるときは、何か月間の増減かを表示します。</p>'+
+    '<h3>ご注意</h3>'+
+    '<p class="small">予想は、いまの月平均が今後も続いた場合の単純な試算で、将来を保証するものではありません。利息や投資の収益は、入力していないので加えていません。</p>';
+  return h;
+}
+function openMethod(){openSheet('算出方法',methodHTML());}
+
+function openBackup(){
+  var c=calc();
+  if(c.n===0){
+    openSheet('バックアップ','<p class="body-p">バックアップする記録がまだありません。記録を保存すると作れるようになります。</p>');
+    return;
+  }
+  var code=encodeBackup();
+  var html=
+    '<p class="body-p">記録を1つの文字にまとめました。コピーして、メモアプリなど安全な場所に貼って残してください。機種変更やデータが消えたときに、ここから戻せます。</p>'+
+    '<label class="sr" for="bkText">バックアップの文字</label>'+
+    '<textarea id="bkText" class="code" readonly></textarea>'+
+    '<div class="btn-row"><button type="button" class="btn" id="btnCopy">コピーする</button>'+
+    '<button type="button" class="btn ghost" id="btnFile">ファイルに保存</button></div>'+
+    '<p id="bkMsg" class="small" role="status"></p>'+
+    '<p class="small">ファイルに保存できないときは、コピーを使ってください。</p>';
+  openSheet('バックアップ',html,function(){
+    var ta=$('bkText');
+    ta.value=code;
+    function mark(){
+      commit(function(){state.meta.lastBackupAt=new Date().toISOString();});
+      renderHistory();renderHome();
+    }
+    $('btnCopy').addEventListener('click',async function(){
+      var ok=false;
+      try{
+        if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(code);ok=true;}
+      }catch(e){ok=false;}
+      if(!ok){
+        try{ta.focus();ta.select();ta.setSelectionRange(0,code.length);ok=document.execCommand('copy');}catch(e2){ok=false;}
+      }
+      if(ok){$('bkMsg').textContent='コピーしました。メモアプリなどに貼って保管してください。';mark();toast('コピーしました');}
+      else{$('bkMsg').textContent='コピーできませんでした。上の文字を長押しして、すべて選んでコピーしてください。';ta.focus();ta.select();}
+    });
+    $('btnFile').addEventListener('click',function(){
+      try{
+        var d=new Date();
+        var blob=new Blob([code],{type:'text/plain'});
+        var a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download='wa-backup-'+d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())+'.txt';
+        document.body.appendChild(a);a.click();a.remove();
+        setTimeout(function(){URL.revokeObjectURL(a.href);},4000);
+        $('bkMsg').textContent='ファイルの保存を始めました。保存できなかったときは、コピーをお使いください。';
+        mark();
+      }catch(e){$('bkMsg').textContent='ファイルを保存できませんでした。コピーをお使いください。';}
+    });
+  });
+}
+
+function openRestore(){
+  var html=
+    '<p class="body-p">バックアップの文字を貼り付けて、記録を元に戻します。</p>'+
+    '<label class="sr" for="rsText">バックアップの文字</label>'+
+    '<textarea id="rsText" class="code" placeholder="ここに貼り付け（WA1: から始まる文字）" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>'+
+    '<label class="filebtn" for="rsFile">ファイルから読み込む'+
+    '<input id="rsFile" type="file" accept=".txt,.json,text/plain,application/json"></label>'+
+    '<p id="rsMsg" class="err" role="alert"></p>'+
+    '<button type="button" id="btnRestore" class="btn">内容を確認する</button>'+
+    '<p class="small">復元すると、いまの記録はバックアップの内容に置きかわります。</p>';
+  openSheet('復元',html,function(){
+    $('rsFile').addEventListener('change',function(e){
+      var f=e.target.files&&e.target.files[0];
+      if(!f) return;
+      if(f.size>2000000){$('rsMsg').textContent='ファイルが大きすぎます。';return;}
+      var rd=new FileReader();
+      rd.onload=function(){$('rsText').value=String(rd.result||'');$('rsMsg').textContent='';};
+      rd.onerror=function(){$('rsMsg').textContent='ファイルを読み込めませんでした。';};
+      rd.readAsText(f);
+    });
+    $('rsText').addEventListener('input',function(){$('rsMsg').textContent='';});
+    $('btnRestore').addEventListener('click',async function(){
+      var data;
+      try{data=decodeBackup($('rsText').value);}
+      catch(e){
+        $('rsMsg').textContent=(e&&e.message==='empty')?'バックアップの文字を貼り付けてください。':'バックアップを読み取れませんでした。文字がすべて貼り付けられているか確認してください。';
+        return;
+      }
+      var list=Object.keys(data.records).map(function(k){return data.records[k];}).sort(function(a,b){return a.idx-b.idx;});
+      if(list.length===0){$('rsMsg').textContent='このバックアップには記録が入っていません。';return;}
+      var cur=Object.keys(state.records).length;
+      var ok=await ask({
+        title:'バックアップから復元しますか？',
+        body:'バックアップには'+list.length+'件の記録（'+labelOf(list[0].key)+'から'+labelOf(list[list.length-1].key)+'）があります。'+(cur?'いまの'+cur+'件の記録は置きかわります。':''),
+        ok:'復元する',cancel:'やめる'
+      });
+      if(!ok) return;
+      var r=commit(function(){
+        state.records=data.records;
+        state.meta={lastBackupAt:new Date().toISOString()};
+      });
+      if(!r.ok){$('rsMsg').textContent='復元できませんでした。端末の空き容量や、ブラウザの設定を確認してください。';return;}
+      closeSheet();
+      renderAll();
+      toast('復元しました（'+list.length+'件）');
+    });
+  });
+}
+
+function openA2HS(){
+  openSheet('ホーム画面に追加',
+    '<p class="body-p">ホーム画面に置くと、アプリのように開けます。</p>'+
+    '<ol class="steps"><li>Safariでこのページを開きます。</li>'+
+    '<li>画面の下にある共有ボタン（四角から矢印が出ているマーク）をタップします。</li>'+
+    '<li>「ホーム画面に追加」を選びます。</li>'+
+    '<li>右上の「追加」をタップします。</li></ol>'+
+    '<p class="small">記録は、この端末のブラウザの中に保存されます。ブラウザのデータを消すと記録も消えるので、ときどきバックアップを作ってください。</p>');
+}
+
+async function wipeAll(){
+  var n=Object.keys(state.records).length;
+  if(!n){toast('削除する記録はありません');return;}
+  var ok=await ask({title:'すべての記録を削除しますか？',body:n+'件の記録がすべて消えます。元に戻せません。先にバックアップを作ることをおすすめします。',ok:'すべて削除',cancel:'やめる',danger:true});
+  if(!ok) return;
+  var r=commit(function(){state.records={};});
+  if(!r.ok){toast('削除できませんでした');return;}
+  renderAll();
+  toast('すべての記録を削除しました');
+}
+
+/* =========================================================
+   イベント
+   ========================================================= */
+document.addEventListener('click',function(e){
+  var t=e.target.closest?e.target.closest('[data-act],[data-go],[data-edit]'):null;
+  if(!t||sheetOpen||dialogOpen) return;
+  if(t.hasAttribute('data-go')){go(t.getAttribute('data-go'));return;}
+  if(t.hasAttribute('data-edit')){openRecord(t.getAttribute('data-edit'));return;}
+  var a=t.getAttribute('data-act');
+  if(a==='record') openRecord(null);
+  else if(a==='method') openMethod();
+  else if(a==='backup') openBackup();
+  else if(a==='restore') openRestore();
+  else if(a==='a2hs') openA2HS();
+  else if(a==='wipe') wipeAll();
+});
+$('sheetClose').addEventListener('click',closeSheet);
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&sheetOpen&&!dialogOpen) closeSheet();
+});
+
+/* =========================================================
+   ホーム画面アイコン（実行時に描く）
+   ========================================================= */
+function setupIcon(){
+  try{
+    var cv=document.createElement('canvas');
+    cv.width=cv.height=180;
+    var cx=cv.getContext('2d');
+    if(!cx) return;
+    cx.fillStyle='#FBF9F4';cx.fillRect(0,0,180,180);
+    var g=cx.createLinearGradient(30,30,150,150);
+    g.addColorStop(0,'#EBDDB4');g.addColorStop(.35,'#CDB278');g.addColorStop(.6,'#F3EBD3');g.addColorStop(1,'#C2A663');
+    cx.fillStyle=g;
+    cx.beginPath();
+    cx.arc(90,90,58,0,Math.PI*2);
+    cx.arc(91.3,90.8,52,0,Math.PI*2,true);
+    cx.fill('evenodd');
+    var l=document.createElement('link');
+    l.rel='apple-touch-icon';
+    l.href=cv.toDataURL('image/png');
+    document.head.appendChild(l);
+  }catch(e){}
+}
+
+/* =========================================================
+   起動
+   ========================================================= */
+loadState();
+renderAll();
+go('home');
+setupIcon();
+try{if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();}catch(e){}
+setTimeout(function(){$('app').classList.remove('intro');},2600);
+
+/* 動作確認用（画面には影響しません） */
+window.__wa={calc:calc,state:function(){return state;},fmtInt:fmtInt,manText:manText,divRound:divRound,
+  encodeBackup:encodeBackup,decodeBackup:decodeBackup,KEY:KEY,renderAll:renderAll,go:go};
+})();
+</script>
+</body>
+</html>
