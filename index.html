@@ -225,6 +225,15 @@ textarea.code:focus{border-color:var(--gold-deep)}
 .btn-row .btn{margin:0;height:50px;font-size:14px;max-width:none}
 .btn.ghost{background:rgba(255,255,255,.75);box-shadow:inset 0 0 0 1px rgba(205,180,126,.7)}
 .filebtn{display:block;margin-top:14px;font-size:13px;color:var(--mute)}
+.bulk{margin-top:6px}
+.bulk-year{font:400 12px var(--num);letter-spacing:.22em;color:var(--faint);margin:22px 0 2px}
+.bulk-row{display:flex;align-items:center;gap:10px;min-height:58px;border-bottom:1px solid rgba(205,180,126,.2)}
+.bulk-row label{flex:none;width:4.8em;font-size:15px;line-height:1.4}
+.bulk-row .has{display:block;font-size:11px;color:var(--mute);letter-spacing:.06em}
+.bulk-row input{flex:1;min-width:0;border:0;border-radius:0;background:transparent;text-align:right;padding:8px 0;outline:none;
+  font:300 22px var(--num);color:var(--ink);-webkit-appearance:none;letter-spacing:.01em}
+.bulk-row input::placeholder{color:#D5D3CC}
+.bulk-row .u{flex:none;font-size:12px;color:var(--mute)}
 .filebtn input{display:block;margin-top:6px;font-size:14px;max-width:100%}
 
 /* ---------- ダイアログ・トースト ---------- */
@@ -589,7 +598,8 @@ function renderHome(){
     ctr.innerHTML='<p class="ring-verse">静かに積み重ね、<br>未来を見つめる。</p>';
     below.innerHTML=
       '<p class="lead">給料日の前日の貯金総額を、<br>月に一度だけ記録します。</p>'+
-      '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button></div>';
+      '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button>'+
+      '<button type="button" class="link" data-act="bulk">過去の貯金をまとめて入れる</button></div>';
     return;
   }
   var s=fmtInt(c.latest.a);
@@ -620,7 +630,8 @@ function renderHome(){
   below.innerHTML=
     '<div class="delta-block">'+deltaHtml+'</div>'+
     '<div class="avg-block">'+avgHtml+'</div>'+
-    '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button></div>'+
+    '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button>'+
+    '<button type="button" class="link" data-act="bulk">過去の貯金をまとめて入れる</button></div>'+
     nudge+
     '<p class="tagline">静かに積み重ね、未来を見つめる。</p>';
 }
@@ -733,7 +744,8 @@ function renderHistory(){
   var html='';
   if(c.n===0){
     html+='<p class="lead">まだ記録がありません。</p>'+
-      '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button></div>';
+      '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button>'+
+      '<button type="button" class="link" data-act="bulk">過去の貯金をまとめて入れる</button></div>';
     chartPts=[];
   }else{
     if(c.n>=2){
@@ -763,6 +775,7 @@ function renderHistory(){
   }
   html+=
     '<div class="settings"><h2 class="sec">設定</h2>'+
+    '<button type="button" class="srow" data-act="bulk"><span>過去の貯金をまとめて入れる</span></button>'+
     '<button type="button" class="srow" data-act="backup"><span>バックアップを作る</span><span class="sv">最後：'+esc(lastBackupText())+'</span></button>'+
     '<button type="button" class="srow" data-act="restore"><span>バックアップから復元する</span></button>'+
     '<button type="button" class="srow" data-act="method"><span>算出方法を見る</span></button>'+
@@ -894,7 +907,7 @@ function openRecord(editKey){
   var mo='';
   for(var m=1;m<=12;m++) mo+='<option value="'+m+'"'+(m===ip.mo?' selected':'')+'>'+m+'</option>';
   var html=
-    '<p class="sheet-lead">給料日の前日の時点の、貯金の合計を入力します。</p>'+
+    '<p class="sheet-lead">給料日の前日の時点の、貯金の合計を入力します。<br>年と月を変えると、過去の月も記録できます。</p>'+
     '<div class="ym">'+
       '<label class="sr" for="selYear">対象の年</label><select id="selYear">'+yo+'</select><span>年</span>'+
       '<label class="sr" for="selMonth">対象の月</label><select id="selMonth">'+mo+'</select><span>月</span>'+
@@ -1049,6 +1062,137 @@ function bindRecordForm(editKey,initKey){
   if(ex0) prefill(ex0);
   refresh();
   if(!editKey){try{inAmount.focus();}catch(e){}}
+}
+
+/* =========================================================
+   過去の貯金をまとめて入れるシート
+   ========================================================= */
+var BULK_STEP=12;
+var MIN_IDX=1900*12;
+function openBulk(){
+  var html=
+    '<p class="sheet-lead">過去の月の貯金総額を、まとめて入力できます。<br>わかる月だけ入れれば大丈夫です。空欄の月は保存されません。</p>'+
+    '<div id="bulkList" class="bulk"></div>'+
+    '<button type="button" id="btnMore" class="link">もっと前の月を表示する</button>'+
+    '<p id="bulkError" class="err" role="alert"></p>'+
+    '<button type="button" id="btnBulkSave" class="btn">保存する</button>'+
+    '<p class="small">すでに記録がある月は、その金額が入っています。書きかえると更新されます。記録を消したいときは、「記録」の画面から削除してください。</p>';
+  openSheet('過去の貯金',html,function(){bindBulkForm();});
+}
+
+function bindBulkForm(){
+  var listEl=$('bulkList'),btnMore=$('btnMore'),btnSave=$('btnBulkSave'),errEl=$('bulkError');
+  var nextIdx=nowIdx()-1;   /* 先月からさかのぼる */
+  var lastYear=null;
+
+  function digitsOf(s){return toHalf(s).replace(/[^0-9]/g,'');}
+  function inputs(){return listEl.querySelectorAll('input[data-key]');}
+
+  function addRows(){
+    var html='';
+    for(var i=0;i<BULK_STEP&&nextIdx>=MIN_IDX;i++,nextIdx--){
+      var y=Math.floor(nextIdx/12),m=nextIdx%12+1,k=keyOf(y,m),ex=state.records[k];
+      if(y!==lastYear){html+='<p class="bulk-year">'+y+'</p>';lastYear=y;}
+      var id='bk-'+k;
+      html+='<div class="bulk-row">'+
+        '<label for="'+id+'">'+m+'月'+(ex?'<span class="has">記録あり</span>':'')+'</label>'+
+        '<input id="'+id+'" data-key="'+k+'"'+(ex?' data-orig="'+ex.a+'" value="'+addCommas(String(ex.a))+'"':'')+
+        ' type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" placeholder="0" aria-label="'+y+'年'+m+'月の貯金総額（円）">'+
+        '<span class="u">円</span></div>';
+    }
+    listEl.insertAdjacentHTML('beforeend',html);
+    btnMore.hidden=nextIdx<MIN_IDX;
+  }
+
+  /* 保存するもの（新しく入れた月と、金額を書きかえた月）を集める */
+  function changes(){
+    var out=[];
+    var ins=inputs();
+    for(var i=0;i<ins.length;i++){
+      var d=digitsOf(ins[i].value);
+      if(d==='') continue;
+      var amt=Number(d),orig=ins[i].getAttribute('data-orig');
+      if(orig!==null&&Number(orig)===amt) continue;
+      out.push({key:ins[i].getAttribute('data-key'),a:amt});
+    }
+    return out;
+  }
+  function refresh(){
+    var n=changes().length;
+    btnSave.textContent=n?n+'件を保存する':'保存する';
+  }
+
+  listEl.addEventListener('input',function(e){
+    var inp=e.target;
+    if(!inp.hasAttribute||!inp.hasAttribute('data-key')||e.isComposing) return;
+    var raw=inp.value,caret=inp.selectionStart;
+    if(caret===null||caret===undefined) caret=raw.length;
+    var before=digitsOf(raw.slice(0,caret)).length;
+    var d=digitsOf(raw).replace(/^0+(?=\d)/,'');
+    var over=false;
+    if(d.length>12){d=d.slice(0,12);over=true;}
+    var f=d?addCommas(d):'';
+    inp.value=f;
+    var pos=0,cnt=0;
+    while(pos<f.length&&cnt<before){if(/\d/.test(f.charAt(pos))) cnt++;pos++;}
+    try{inp.setSelectionRange(pos,pos);}catch(err){}
+    errEl.textContent=over?'入力できるのは12桁（999,999,999,999円）までです。':'';
+    refresh();
+  });
+  listEl.addEventListener('compositionend',function(e){
+    if(e.target.hasAttribute&&e.target.hasAttribute('data-key')) e.target.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  /* Enterで次の月へ */
+  listEl.addEventListener('keydown',function(e){
+    if(e.key!=='Enter'||e.isComposing) return;
+    var ins=Array.prototype.slice.call(inputs());
+    var i=ins.indexOf(e.target);
+    if(i<0) return;
+    e.preventDefault();
+    if(i+1<ins.length) ins[i+1].focus();
+    else doSave();
+  });
+  btnMore.addEventListener('click',function(){
+    var first=inputs().length;
+    addRows();
+    var ins=inputs();
+    if(ins[first]){try{ins[first].focus();}catch(e){}}
+  });
+
+  var saving=false;
+  function doSave(){
+    if(saving) return;
+    var list=changes();
+    if(!list.length){errEl.textContent='金額を1つ以上入力してください。';return;}
+    var added=0,updated=0;
+    list.forEach(function(c){if(state.records[c.key]) updated++;else added++;});
+    if(Object.keys(state.records).length+added>2400){errEl.textContent='記録できるのは2,400件までです。';return;}
+    saving=true;
+    var now=new Date().toISOString();
+    var r=commit(function(){
+      var recs=Object.assign({},state.records);
+      list.forEach(function(c){
+        var ex=recs[c.key];
+        recs[c.key]=makeRecord(c.key,c.a,ex?ex.memo:'',now);
+      });
+      state.records=recs;
+    });
+    saving=false;
+    if(!r.ok){errEl.textContent='保存できませんでした。端末の空き容量や、ブラウザの設定を確認してください。';return;}
+    closeSheet();
+    renderAll();
+    pulseRing();
+    var parts=[];
+    if(added) parts.push(added+'件保存');
+    if(updated) parts.push(updated+'件更新');
+    toast('過去の記録を'+parts.join('、')+'しました'+(r.volatile?'（この端末には残りません）':''));
+  }
+  btnSave.addEventListener('click',doSave);
+
+  addRows();
+  refresh();
+  var ins0=inputs();
+  if(ins0[0]){try{ins0[0].focus({preventScroll:true});}catch(e){}}
 }
 
 /* =========================================================
@@ -1211,6 +1355,7 @@ document.addEventListener('click',function(e){
   if(t.hasAttribute('data-edit')){openRecord(t.getAttribute('data-edit'));return;}
   var a=t.getAttribute('data-act');
   if(a==='record') openRecord(null);
+  else if(a==='bulk') openBulk();
   else if(a==='method') openMethod();
   else if(a==='backup') openBackup();
   else if(a==='restore') openRestore();
