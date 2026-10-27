@@ -125,6 +125,26 @@ html.lock,html.lock body{height:100%;overflow:hidden;overscroll-behavior:none}
 #screen-home .peek{margin-top:clamp(4px,1.8vh,18px)}
 #screen-home .actions{margin-top:clamp(12px,3.6vh,36px)}
 #screen-home .nudge{margin-top:clamp(0px,1vh,10px)}
+.remind{display:flex;align-items:center;justify-content:center;gap:10px;margin:clamp(4px,1.6vh,18px) auto 0;min-height:36px;padding:0 18px;
+  border-radius:20px;background:rgba(220,234,243,.55);box-shadow:inset 0 0 0 1px rgba(150,180,200,.35);font-size:13px;color:var(--ink)}
+.remind b{font-weight:500;color:var(--gold-deep)}
+.goal-line{display:block;margin:clamp(4px,1.4vh,12px) auto 0;min-height:36px;padding:0 6px;font-size:13px;line-height:1.7}
+.goal-line .k{color:var(--mute);margin-right:8px}
+.ring-center[data-act]{cursor:pointer}
+.ring-prog{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.ring-wrap.has-goal .ring-svg{opacity:.4}
+.ysum{margin-top:30px}
+.ysum-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:12px 0;border-bottom:1px solid rgba(205,180,126,.2)}
+.ysum-y{font:400 15px var(--num);letter-spacing:.08em}
+.ysum-r{text-align:right}
+.ysum-v{font-family:var(--num);font-weight:300;font-size:19px;line-height:1.4}
+.ysum-v .u{font:400 12px var(--sans);margin-left:3px;color:var(--mute)}
+.ysum-c{font-size:12px;color:var(--mute);line-height:1.7}
+.ysum-best{font-size:12px;color:var(--mute);margin-top:2px}
+.pay{display:flex;align-items:baseline;justify-content:center;gap:8px;margin-top:18px}
+.pay select{-webkit-appearance:none;appearance:none;background:transparent;border:0;border-bottom:1px solid rgba(205,180,126,.65);border-radius:0;
+  font:300 30px var(--num);color:var(--ink);padding:2px 10px;min-height:44px;text-align:center;text-align-last:center}
+.pay span{font-size:14px;color:var(--mute)}
 .sublinks{display:flex;flex-wrap:wrap;justify-content:center;gap:0 6px;margin-top:6px}
 .sublinks .link{margin:0}
 #screen-home .tagline{margin-top:clamp(12px,4vh,46px)}
@@ -331,6 +351,7 @@ textarea.code:focus{border-color:var(--gold-deep)}
           <div class="ring-wrap" id="ringWrap">
             <div class="ring-halo"></div>
             <svg class="ring-svg" viewBox="0 0 320 320" aria-hidden="true"><use href="#ring" width="320" height="320"/></svg>
+            <svg class="ring-prog" id="ringProg" viewBox="0 0 320 320" aria-hidden="true"></svg>
             <div class="ring-center" id="ringCenter"></div>
           </div>
         </div>
@@ -406,21 +427,24 @@ function esc(s){
 }
 function pad2(n){return n<10?'0'+n:''+n;}
 function addCommas(s){return s.replace(/\B(?=(\d{3})+(?!\d))/g,',');}
-function fmtInt(n){return (n<0?'−':'')+addCommas(String(Math.abs(n)));}
-function fmtSigned(n){return n>0?'+'+fmtInt(n):(n<0?fmtInt(n):'±0');}
+var MASK='••••';
+function fmtInt(n){return state.meta.hide?MASK:(n<0?'−':'')+addCommas(String(Math.abs(n)));}
+function fmtSigned(n){return state.meta.hide?MASK:(n>0?'+'+fmtInt(n):(n<0?fmtInt(n):'±0'));}
 function N(n){return '<span class="n">'+fmtInt(n)+'</span>';}
 function toHalf(s){
   return String(s).replace(/[０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);});
 }
+/* 入力中の金額の読み方（入力欄の確認用なので、金額をかくす設定には従わない） */
 function manText(n){
-  if(n<10000) return fmtInt(n)+'円';
+  function f(x){return addCommas(String(x));}
+  if(n<10000) return f(n)+'円';
   var oku=Math.floor(n/100000000);
   var man=Math.floor((n%100000000)/10000);
   var rest=n%10000;
   var s='';
-  if(oku) s+=fmtInt(oku)+'億';
+  if(oku) s+=f(oku)+'億';
   if(man) s+=man+'万';
-  if(rest) s+=fmtInt(rest);
+  if(rest) s+=f(rest);
   return s+'円';
 }
 /* 整数どうしの割り算を、四捨五入（0から遠い方向）で整数にする */
@@ -450,7 +474,7 @@ function nowIdx(){var d=new Date();return d.getFullYear()*12+d.getMonth();}
 /* =========================================================
    データ（保存・読み込み・検証）
    ========================================================= */
-var state={records:{},meta:{lastBackupAt:null}};
+var state={records:{},meta:{lastBackupAt:null,goal:null,payday:null,hide:false}};
 var storageOK=true;
 var loadNote=null;
 
@@ -474,14 +498,17 @@ function validateData(obj){
     recs[r.m]=makeRecord(r.m,r.a,cleanMemo(typeof r.memo==='string'?r.memo:''),t);
   });
   var lb=null;
-  if(obj.meta&&typeof obj.meta.lastBackupAt==='string'&&!isNaN(Date.parse(obj.meta.lastBackupAt))) lb=obj.meta.lastBackupAt;
-  return {records:recs,meta:{lastBackupAt:lb}};
+  var m=obj.meta&&typeof obj.meta==='object'?obj.meta:{};
+  if(typeof m.lastBackupAt==='string'&&!isNaN(Date.parse(m.lastBackupAt))) lb=m.lastBackupAt;
+  var goal=(typeof m.goal==='number'&&Math.floor(m.goal)===m.goal&&m.goal>0&&m.goal<=MAX_AMOUNT)?m.goal:null;
+  var payday=(typeof m.payday==='number'&&Math.floor(m.payday)===m.payday&&m.payday>=1&&m.payday<=31)?m.payday:null;
+  return {records:recs,meta:{lastBackupAt:lb,goal:goal,payday:payday,hide:m.hide===true}};
 }
 function sortedList(){
   return Object.keys(state.records).map(function(k){return state.records[k];}).sort(function(a,b){return a.idx-b.idx;});
 }
 function serialize(extra){
-  var o={v:1,records:sortedList().map(function(r){return {m:r.key,a:r.a,memo:r.memo,t:r.t};}),meta:{lastBackupAt:state.meta.lastBackupAt}};
+  var o={v:1,records:sortedList().map(function(r){return {m:r.key,a:r.a,memo:r.memo,t:r.t};}),meta:{lastBackupAt:state.meta.lastBackupAt,goal:state.meta.goal,payday:state.meta.payday,hide:state.meta.hide}};
   if(extra){for(var k in extra){o[k]=extra[k];}}
   return o;
 }
@@ -567,6 +594,47 @@ function calc(){
   }
   return c;
 }
+/* 目標の進み具合と、いまのペースで届く月 */
+function goalInfo(c){
+  var g=state.meta.goal;
+  if(!g||c.n===0) return null;
+  var o={goal:g,rate:Math.max(0,Math.min(1,c.latest.a/g)),left:g-c.latest.a,reached:c.latest.a>=g,idx:null,far:false};
+  if(!o.reached&&c.n>=2&&c.total>0){
+    var months=Math.ceil(o.left*c.span/c.total);
+    if(months>1200) o.far=true;
+    else o.idx=c.latest.idx+months;
+  }
+  return o;
+}
+/* 給料日の前日を過ぎても、今月の記録がないか */
+function recordMissing(){
+  var pd=state.meta.payday;
+  if(!pd||Object.keys(state.records).length===0) return false;
+  var d=new Date(),y=d.getFullYear(),m=d.getMonth()+1;
+  if(state.records[keyOf(y,m)]) return false;
+  var dim=new Date(y,m,0).getDate();
+  return d.getDate()>=Math.max(1,Math.min(pd,dim)-1);
+}
+/* 1年ごとのまとめ（その年の最後の記録 − 前の年の最後の記録） */
+function yearSummary(list){
+  var out=[],byYear={};
+  list.forEach(function(r,i){
+    var y=byYear[r.y];
+    if(!y){y=byYear[r.y]={y:r.y,first:r,last:r,base:i>0?list[i-1]:null,best:null};out.push(y);}
+    y.last=r;
+    if(i>0&&r.idx-list[i-1].idx===1){
+      var d=r.a-list[i-1].a;
+      if(d>0&&(!y.best||d>y.best.d)) y.best={r:r,d:d};
+    }
+  });
+  out.forEach(function(y){
+    var from=y.base||y.first;
+    y.change=y.last.a-from.a;
+    y.from=from;
+    y.noBase=!y.base;
+  });
+  return out.reverse();
+}
 function signClass(n){return n>0?'up':(n<0?'down':'flat');}
 function deltaInfo(d){
   if(d>0) return {cls:'up',html:'前回より'+N(d)+'円増えました'};
@@ -607,6 +675,8 @@ function renderBanner(){
 function renderHome(){
   var c=calc();
   var ctr=$('ringCenter'),below=$('homeBelow');
+  renderRingProgress(c);
+  ctr.removeAttribute('data-act');ctr.removeAttribute('role');ctr.removeAttribute('tabindex');ctr.removeAttribute('aria-label');
   if(c.n===0){
     ctr.innerHTML='<p class="ring-verse">静かに積み重ね、<br>未来を見つめる。</p>';
     below.innerHTML=
@@ -620,6 +690,8 @@ function renderHome(){
     '<p class="ring-k">いまの貯金総額</p>'+
     '<p class="amount" style="font-size:calc(var(--ring) * '+ringFactor(s.length)+')">'+s+'<span class="yen">円</span></p>'+
     '<p class="ring-m">'+labelOf(c.latest.key)+'の記録</p>';
+  ctr.setAttribute('data-act','mask');ctr.setAttribute('role','button');ctr.setAttribute('tabindex','0');
+  ctr.setAttribute('aria-label',state.meta.hide?'金額を表示する':'金額をかくす');
 
   var deltaHtml,avgHtml;
   if(c.prev){
@@ -633,19 +705,42 @@ function renderHome(){
     avgHtml=
       '<div class="avg"><span class="avg-k">月平均</span><span class="avg-v n '+sc+'">'+fmtSigned(c.avg)+'</span><span class="avg-u">円</span></div>'+
       '<p class="cap opt2">'+labelOf(c.first.key)+'から'+labelOf(c.latest.key)+'までの'+c.span+'か月間</p>'+
-      '<button type="button" class="peek" data-go="future"><span class="peek-k">1年後の予想</span><span class="n '+(c.forecast[0].value<0?'down':'')+'">'+fmtInt(c.forecast[0].value)+'円</span></button>';
+      '<button type="button" class="peek'+(state.meta.goal?' opt3':'')+'" data-go="future"><span class="peek-k">1年後の予想</span><span class="n '+(c.forecast[0].value<0?'down':'')+'">'+fmtInt(c.forecast[0].value)+'円</span></button>';
   }else{
     avgHtml='<p class="cap">あと1件記録すると、<br>月平均と未来の予想が見えてきます。</p>';
   }
+  var gi=goalInfo(c),goalHtml='';
+  if(gi){
+    var gtxt;
+    if(gi.reached) gtxt='<span class="up">目標を達成しています</span>';
+    else if(gi.idx!==null) gtxt='あと'+N(gi.left)+'円・'+idxLabel(gi.idx)+'ごろ達成';
+    else if(gi.far) gtxt='あと'+N(gi.left)+'円・100年以上先';
+    else gtxt='あと'+N(gi.left)+'円';
+    goalHtml='<button type="button" class="goal-line" data-act="goal"><span class="k">目標 '+Math.round(gi.rate*100)+'%</span>'+gtxt+'</button>';
+  }
   var due=backupDue(c);
   below.innerHTML=
+    (recordMissing()?'<button type="button" class="remind" data-act="record">今月の記録がまだです<b>記録する ›</b></button>':'')+
     '<div class="delta-block">'+deltaHtml+'</div>'+
-    '<div class="avg-block">'+avgHtml+'</div>'+
+    '<div class="avg-block">'+avgHtml+goalHtml+'</div>'+
     '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button>'+
     '<div class="sublinks"><button type="button" class="link" data-act="bulk">過去の貯金を入れる</button>'+
     (due?'<button type="button" class="link" data-act="backup">バックアップを作る</button>':'')+'</div></div>'+
     (due?'<p class="nudge opt2">記録は、この端末の中だけに保存されています。</p>':'')+
     '<p class="tagline opt1">静かに積み重ね、未来を見つめる。</p>';
+}
+
+/* 目標に近づくほど、輪が光でうまっていく */
+function renderRingProgress(c){
+  var svg=$('ringProg'),wrap=$('ringWrap');
+  var gi=goalInfo(c);
+  wrap.classList.toggle('has-goal',!!gi);
+  if(!gi){svg.innerHTML='';return;}
+  var p=(gi.rate*100).toFixed(2);
+  var arc='cx="160" cy="160" r="118" pathLength="100" fill="none" stroke-linecap="round" transform="rotate(-90 160 160)" stroke-dasharray="'+p+' 100"';
+  svg.innerHTML=gi.rate<=0?'':
+    '<circle '+arc+' stroke="url(#gBody)" stroke-width="9" opacity=".55" filter="url(#fBlurM)"/>'+
+    '<circle '+arc+' stroke="url(#gBody)" stroke-width="4.5"/>';
 }
 
 function renderFuture(){
@@ -765,6 +860,17 @@ function renderHistory(){
     }else{
       chartPts=[];
     }
+    var ys=yearSummary(c.list);
+    if(c.n>=2){
+      html+='<div class="ysum"><h2 class="sec">1年ごとのまとめ</h2>'+ys.map(function(y){
+        var note=(y.noBase?labelOf(y.from.key)+'からの増減':'前の年の終わりからの増減')+(y.last.mo!==12?'（'+y.last.mo+'月まで）':'');
+        return '<div class="ysum-row"><span class="ysum-y">'+y.y+'</span><span class="ysum-r">'+
+          '<span class="ysum-v '+signClass(y.change)+'" style="display:block">'+(y.change===0?'±0':fmtSigned(y.change))+'<span class="u">円</span></span>'+
+          '<span class="ysum-c" style="display:block">'+note+'</span>'+
+          (y.best?'<span class="ysum-best" style="display:block">いちばん増えた月：'+y.best.r.mo+'月（'+fmtSigned(y.best.d)+'円）</span>':'')+
+          '</span></div>';
+      }).join('')+'</div>';
+    }
     html+='<p class="hint">記録をタップすると、編集や削除ができます。</p><div class="list">';
     var lastYear=null;
     for(var i=c.n-1;i>=0;i--){
@@ -787,6 +893,9 @@ function renderHistory(){
   }
   html+=
     '<div class="settings"><h2 class="sec">設定</h2>'+
+    '<button type="button" class="srow" data-act="goal"><span>目標金額</span><span class="sv">'+(state.meta.goal?esc(fmtInt(state.meta.goal))+'円':'決めていません')+'</span></button>'+
+    '<button type="button" class="srow" data-act="payday"><span>給料日</span><span class="sv">'+(state.meta.payday?'毎月'+state.meta.payday+'日':'決めていません')+'</span></button>'+
+    '<button type="button" class="srow" data-act="mask"><span>金額をかくす</span><span class="sv">'+(state.meta.hide?'オン':'オフ')+'</span></button>'+
     '<button type="button" class="srow" data-act="bulk"><span>過去の貯金をまとめて入れる</span></button>'+
     '<button type="button" class="srow" data-act="backup"><span>バックアップを作る</span><span class="sv">最後：'+esc(lastBackupText())+'</span></button>'+
     '<button type="button" class="srow" data-act="restore"><span>バックアップから復元する</span></button>'+
@@ -812,7 +921,7 @@ function fitHome(){
   if(currentScreen!=='home'){root.classList.remove('lock');return;}
   var wrap=$('ringWrap'),below=$('homeBelow');
   var navTop=document.querySelector('.nav').getBoundingClientRect().top;
-  var maxRing=Math.min(320,window.innerWidth*0.8),minRing=190;
+  var maxRing=Math.min(320,window.innerWidth*0.8),minRing=180;
   function setHidden(cls,on){
     var els=below.querySelectorAll('.'+cls);
     for(var i=0;i<els.length;i++) els[i].hidden=on;
@@ -824,10 +933,11 @@ function fitHome(){
     for(var i=0;i<kids.length;i++){if(!kids[i].hidden) bottom=Math.max(bottom,kids[i].getBoundingClientRect().bottom);}
     return maxRing-(bottom+12-navTop);
   }
-  setHidden('opt1',false);setHidden('opt2',false);
+  /* 足りないときは、なくても困らないものから順にかくす（opt1 → opt2 → opt3） */
+  var levels=['opt1','opt2','opt3'];
+  levels.forEach(function(l){setHidden(l,false);});
   var r=room();
-  if(r<minRing+40){setHidden('opt1',true);r=room();}
-  if(r<minRing){setHidden('opt2',true);r=room();}
+  for(var i=0;i<levels.length&&r<minRing+(i===0?40:0);i++){setHidden(levels[i],true);r=room();}
   var ring=Math.max(minRing,Math.min(maxRing,r));
   wrap.style.setProperty('--ring',ring+'px');
   /* どうしても収まらない小さな画面では、固定せずに上下に動かせるままにする */
@@ -1238,6 +1348,85 @@ function bindBulkForm(){
 }
 
 /* =========================================================
+   目標金額・給料日・金額をかくす
+   ========================================================= */
+function openGoal(){
+  var g=state.meta.goal;
+  var html=
+    '<p class="sheet-lead">ためたい金額を入れると、ホームの輪が目標に近づくほど光でうまっていきます。<br>いまのペースで、いつごろ届きそうかも表示します。</p>'+
+    '<div class="amount-line"><label class="sr" for="inGoal">目標金額（円）</label>'+
+      '<input id="inGoal" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="3,000,000">'+
+      '<span class="yen-u">円</span></div>'+
+    '<p id="goalRead" class="read"></p>'+
+    '<p id="goalError" class="err" role="alert"></p>'+
+    '<button type="button" id="btnGoalSave" class="btn">保存する</button>'+
+    '<button type="button" id="btnGoalDel" class="link danger"'+(g?'':' hidden')+'>目標をやめる</button>';
+  openSheet('目標金額',html,function(){
+    var inp=$('inGoal'),read=$('goalRead'),err=$('goalError');
+    function digitsOf(v){return toHalf(v).replace(/[^0-9]/g,'');}
+    if(g) inp.value=addCommas(String(g));
+    function show(){var d=digitsOf(inp.value);read.textContent=(d&&+d>=10000)?'＝ '+manText(+d):'';}
+    inp.addEventListener('input',function(e){
+      if(e.isComposing) return;
+      var d=digitsOf(inp.value).replace(/^0+(?=\d)/,'');
+      if(d.length>12) d=d.slice(0,12);
+      inp.value=d?addCommas(d):'';
+      err.textContent='';
+      show();
+    });
+    inp.addEventListener('compositionend',function(){inp.dispatchEvent(new Event('input'));});
+    function save(){
+      var d=digitsOf(inp.value);
+      if(!d||+d<=0){err.textContent='1円以上の金額を入力してください。';inp.focus();return;}
+      var v=+d;
+      var r=commit(function(){state.meta=Object.assign({},state.meta,{goal:v});});
+      if(!r.ok){err.textContent='保存できませんでした。もう一度お試しください。';return;}
+      closeSheet();renderAll();pulseRing();
+      toast('目標を'+manText(v)+'にしました');
+    }
+    $('btnGoalSave').addEventListener('click',save);
+    inp.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing){e.preventDefault();save();}});
+    $('btnGoalDel').addEventListener('click',function(){
+      var r=commit(function(){state.meta=Object.assign({},state.meta,{goal:null});});
+      if(!r.ok){err.textContent='保存できませんでした。もう一度お試しください。';return;}
+      closeSheet();renderAll();
+      toast('目標をやめました');
+    });
+    show();
+    try{inp.focus();}catch(e){}
+  });
+}
+
+function openPayday(){
+  var pd=state.meta.payday;
+  var opts='<option value="">決めない</option>';
+  for(var d=1;d<=31;d++) opts+='<option value="'+d+'"'+(d===pd?' selected':'')+'>'+d+'</option>';
+  var html=
+    '<p class="sheet-lead">給料日を決めておくと、給料日の前日になっても今月の記録がないとき、ホームでお知らせします。</p>'+
+    '<div class="pay"><span>毎月</span><label class="sr" for="selPay">給料日</label><select id="selPay">'+opts+'</select><span>日</span></div>'+
+    '<p class="small" style="text-align:center">その月に日がないとき（31日など）は、月の最後の日として数えます。</p>'+
+    '<p id="payError" class="err" role="alert"></p>'+
+    '<button type="button" id="btnPaySave" class="btn">保存する</button>';
+  openSheet('給料日',html,function(){
+    $('btnPaySave').addEventListener('click',function(){
+      var v=$('selPay').value;
+      var nv=v?+v:null;
+      var r=commit(function(){state.meta=Object.assign({},state.meta,{payday:nv});});
+      if(!r.ok){$('payError').textContent='保存できませんでした。もう一度お試しください。';return;}
+      closeSheet();renderAll();
+      toast(nv?'給料日を毎月'+nv+'日にしました':'給料日の設定をやめました');
+    });
+  });
+}
+
+function toggleMask(){
+  var nv=!state.meta.hide;
+  commit(function(){state.meta=Object.assign({},state.meta,{hide:nv});});
+  renderAll();
+  toast(nv?'金額をかくしました':'金額を表示しました');
+}
+
+/* =========================================================
    算出方法・バックアップ・復元・ホーム画面
    ========================================================= */
 function methodHTML(){
@@ -1356,7 +1545,7 @@ function openRestore(){
       if(!ok) return;
       var r=commit(function(){
         state.records=data.records;
-        state.meta={lastBackupAt:new Date().toISOString()};
+        state.meta=Object.assign({},data.meta,{lastBackupAt:new Date().toISOString()});
       });
       if(!r.ok){$('rsMsg').textContent='復元できませんでした。端末の空き容量や、ブラウザの設定を確認してください。';return;}
       closeSheet();
@@ -1398,6 +1587,9 @@ document.addEventListener('click',function(e){
   var a=t.getAttribute('data-act');
   if(a==='record') openRecord(null);
   else if(a==='bulk') openBulk();
+  else if(a==='goal') openGoal();
+  else if(a==='payday') openPayday();
+  else if(a==='mask') toggleMask();
   else if(a==='method') openMethod();
   else if(a==='backup') openBackup();
   else if(a==='restore') openRestore();
@@ -1413,6 +1605,7 @@ window.addEventListener('resize',fitHome);
 try{if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fitHome);}catch(e){}
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'&&sheetOpen&&!dialogOpen) closeSheet();
+  if((e.key==='Enter'||e.key===' ')&&e.target===$('ringCenter')&&$('ringCenter').hasAttribute('data-act')&&!sheetOpen&&!dialogOpen){e.preventDefault();toggleMask();}
 });
 
 /* =========================================================
