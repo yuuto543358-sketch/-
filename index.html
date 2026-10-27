@@ -116,6 +116,19 @@ main{padding-bottom:112px}
 .tagline{font:400 13px/1.9 var(--serif);letter-spacing:.24em;color:var(--mute);text-align:center;margin-top:46px;text-indent:.24em}
 .nudge{margin-top:30px;text-align:center;font-size:12px;color:var(--mute);line-height:1.8}
 
+/* ---------- ホームは画面に収めて、上下に動かないようにする ---------- */
+html.lock,html.lock body{height:100%;overflow:hidden;overscroll-behavior:none}
+#screen-home .hero{margin-top:clamp(8px,2.4vh,22px)}
+#screen-home .lead{margin-top:clamp(12px,3.4vh,34px)}
+#screen-home .delta-block{margin-top:clamp(10px,3.4vh,34px)}
+#screen-home .avg-block{margin-top:clamp(10px,3vh,30px)}
+#screen-home .peek{margin-top:clamp(4px,1.8vh,18px)}
+#screen-home .actions{margin-top:clamp(12px,3.6vh,36px)}
+#screen-home .nudge{margin-top:clamp(0px,1vh,10px)}
+.sublinks{display:flex;flex-wrap:wrap;justify-content:center;gap:0 6px;margin-top:6px}
+.sublinks .link{margin:0}
+#screen-home .tagline{margin-top:clamp(12px,4vh,46px)}
+
 /* ---------- 共通の見出し ---------- */
 .screen-title{font:500 22px/1.4 var(--serif);letter-spacing:.3em;margin-top:30px}
 .screen-sub{font-size:13px;color:var(--mute);letter-spacing:.08em;margin-top:4px}
@@ -611,29 +624,28 @@ function renderHome(){
   var deltaHtml,avgHtml;
   if(c.prev){
     var di=deltaInfo(c.delta);
-    deltaHtml='<p class="delta '+di.cls+'">'+di.html+'</p><p class="cap">'+gapCaption(c)+'</p>';
+    deltaHtml='<p class="delta '+di.cls+'">'+di.html+'</p><p class="cap opt2">'+gapCaption(c)+'</p>';
   }else{
-    deltaHtml='<p class="delta mute">最初の記録です</p><p class="cap">次の月の記録を追加すると、増減がわかります。</p>';
+    deltaHtml='<p class="delta mute">最初の記録です</p><p class="cap opt2">次の月の記録を追加すると、増減がわかります。</p>';
   }
   if(c.n>=2){
     var sc=signClass(c.avg);
     avgHtml=
       '<div class="avg"><span class="avg-k">月平均</span><span class="avg-v n '+sc+'">'+fmtSigned(c.avg)+'</span><span class="avg-u">円</span></div>'+
-      '<p class="cap">'+labelOf(c.first.key)+'から'+labelOf(c.latest.key)+'までの'+c.span+'か月間</p>'+
-      '<button type="button" class="peek" data-go="future"><span class="peek-k">1年後の予想</span><span class="n '+(c.forecast[0].value<0?'down':'')+'">'+fmtInt(c.forecast[0].value)+'円</span></button>'+
-      '<button type="button" class="link" data-act="method">算出方法を見る</button>';
+      '<p class="cap opt2">'+labelOf(c.first.key)+'から'+labelOf(c.latest.key)+'までの'+c.span+'か月間</p>'+
+      '<button type="button" class="peek" data-go="future"><span class="peek-k">1年後の予想</span><span class="n '+(c.forecast[0].value<0?'down':'')+'">'+fmtInt(c.forecast[0].value)+'円</span></button>';
   }else{
     avgHtml='<p class="cap">あと1件記録すると、<br>月平均と未来の予想が見えてきます。</p>';
   }
-  var nudge=backupDue(c)?
-    '<p class="nudge">記録は、この端末の中だけに保存されています。<br><button type="button" class="link" style="display:inline-block;margin:0" data-act="backup">バックアップを作る</button></p>':'';
+  var due=backupDue(c);
   below.innerHTML=
     '<div class="delta-block">'+deltaHtml+'</div>'+
     '<div class="avg-block">'+avgHtml+'</div>'+
     '<div class="actions"><button type="button" class="btn" data-act="record">今月の貯金を記録する</button>'+
-    '<button type="button" class="link" data-act="bulk">過去の貯金をまとめて入れる</button></div>'+
-    nudge+
-    '<p class="tagline">静かに積み重ね、未来を見つめる。</p>';
+    '<div class="sublinks"><button type="button" class="link" data-act="bulk">過去の貯金を入れる</button>'+
+    (due?'<button type="button" class="link" data-act="backup">バックアップを作る</button>':'')+'</div></div>'+
+    (due?'<p class="nudge opt2">記録は、この端末の中だけに保存されています。</p>':'')+
+    '<p class="tagline opt1">静かに積み重ね、未来を見つめる。</p>';
 }
 
 function renderFuture(){
@@ -791,6 +803,35 @@ function renderAll(){
   renderHome();
   renderFuture();
   renderHistory();
+  fitHome();
+}
+
+/* ホームの中身が画面に収まるよう輪の大きさを決め、収まったら上下に動かないよう固定する */
+function fitHome(){
+  var root=document.documentElement;
+  if(currentScreen!=='home'){root.classList.remove('lock');return;}
+  var wrap=$('ringWrap'),below=$('homeBelow');
+  var navTop=document.querySelector('.nav').getBoundingClientRect().top;
+  var maxRing=Math.min(320,window.innerWidth*0.8),minRing=190;
+  function setHidden(cls,on){
+    var els=below.querySelectorAll('.'+cls);
+    for(var i=0;i<els.length;i++) els[i].hidden=on;
+  }
+  /* 輪をいちばん大きくしたときに、はみ出す分だけ輪を小さくする */
+  function room(){
+    wrap.style.setProperty('--ring',maxRing+'px');
+    var kids=below.children,bottom=wrap.getBoundingClientRect().bottom;
+    for(var i=0;i<kids.length;i++){if(!kids[i].hidden) bottom=Math.max(bottom,kids[i].getBoundingClientRect().bottom);}
+    return maxRing-(bottom+12-navTop);
+  }
+  setHidden('opt1',false);setHidden('opt2',false);
+  var r=room();
+  if(r<minRing+40){setHidden('opt1',true);r=room();}
+  if(r<minRing){setHidden('opt2',true);r=room();}
+  var ring=Math.max(minRing,Math.min(maxRing,r));
+  wrap.style.setProperty('--ring',ring+'px');
+  /* どうしても収まらない小さな画面では、固定せずに上下に動かせるままにする */
+  root.classList.toggle('lock',r>=minRing);
 }
 
 function go(name){
@@ -804,6 +845,7 @@ function go(name){
   }
   currentScreen=name;
   window.scrollTo(0,0);
+  fitHome();
 }
 
 /* =========================================================
@@ -1363,6 +1405,12 @@ document.addEventListener('click',function(e){
   else if(a==='wipe') wipeAll();
 });
 $('sheetClose').addEventListener('click',closeSheet);
+/* ホームを固定しているあいだは、指で上下に動かせないようにする（シートの中は動かせる） */
+document.addEventListener('touchmove',function(e){
+  if(document.documentElement.classList.contains('lock')&&!sheetOpen&&!dialogOpen) e.preventDefault();
+},{passive:false});
+window.addEventListener('resize',fitHome);
+try{if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fitHome);}catch(e){}
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'&&sheetOpen&&!dialogOpen) closeSheet();
 });
